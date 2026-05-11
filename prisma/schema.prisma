@@ -1,0 +1,496 @@
+// ============================================================
+//  VITA-LINK — Prisma Schema (Version Hackathon)
+//  Stack : Node.js / Express + PostgreSQL (Supabase)
+// ============================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+//  ENUMS
+// ============================================================
+
+enum Role {
+  DONOR
+  HEALTH_STRUCTURE
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum BloodType {
+  A_POS
+  A_NEG
+  B_POS
+  B_NEG
+  AB_POS
+  AB_NEG
+  O_POS
+  O_NEG
+}
+
+enum UrgencyLevel {
+  VITAL
+  STANDARD
+}
+
+enum AlertStatus {
+  ACTIVE
+  QUOTA_REACHED
+  EXPIRED
+  CANCELLED
+}
+
+enum AlertResponseStatus {
+  CONFIRMED
+  DECLINED
+  ARRIVED
+  NO_SHOW
+  CANCELLED
+}
+
+enum DonorGrade {
+  ASPIRANT
+  SENTINELLE
+  AMBASSADEUR
+}
+
+enum ServiceUnit {
+  EMERGENCY_ROOM
+  OPERATING_ROOM
+  MATERNITY
+  GENERAL
+  PEDIATRICS
+}
+
+enum RewardType {
+  DISCOUNT_COUPON
+  TRANSPORT_TICKET
+  HEALTH_CHECKUP
+  DATA_BUNDLE
+  OTHER
+}
+
+enum CouponStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+enum NotificationType {
+  ALERT_NEW
+  ALERT_QUOTA_REACHED
+  DONATION_VALIDATED
+  POINTS_CREDITED
+  BADGE_EARNED
+  SYSTEM
+}
+
+enum NotificationChannel {
+  PUSH_EXPO
+  SMS
+  USSD
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum HealthStructureStatus {
+  PENDING_REVIEW
+  VERIFIED
+  SUSPENDED
+}
+
+enum BloodStockLevel {
+  CRITICAL
+  LOW
+  ADEQUATE
+  SURPLUS
+}
+
+// ============================================================
+//  OTP CODES
+// ============================================================
+
+model OtpCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("otp_codes")
+}
+
+// ============================================================
+//  USER (Donneur, Agent de santé, Admin)
+// ============================================================
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String?  @unique
+  phone        String   @unique
+  passwordHash String?
+  role         Role     @default(DONOR)
+  firstName    String
+  lastName     String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  gender    Gender?
+  avatarUrl String?
+
+  // Champs donneurs
+  bloodType   BloodType?
+  dateOfBirth DateTime?
+  isAvailable Boolean    @default(true)
+  expoPushToken  String?
+  ussdNumber  String?
+
+  // JWT refresh token
+  refreshToken          String?   @unique
+  refreshTokenExpiresAt DateTime?
+
+  // Lien structure de santé
+  healthStructureId String?  @db.Uuid
+  isStructureAdmin  Boolean  @default(false)
+
+  // Localisation
+  latitude  Float?
+  longitude Float?
+
+  // Relations
+  jambaarsProfile    JambaarsProfile?
+  employerStructure  HealthStructure? @relation("StructureStaff", fields: [healthStructureId], references: [id])
+  alertResponses     AlertResponse[]
+  createdAlerts      Alert[]          @relation("AlertCreator")
+  donations          Donation[]       @relation("DonorDonations")
+  validatedDonations Donation[]       @relation("ValidatorDonations")
+  userBadges         UserBadge[]
+  coupons            Coupon[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  managedPartners    Partner[]
+
+  @@map("users")
+}
+
+// ============================================================
+//  STRUCTURE DE SANTÉ
+// ============================================================
+
+model HealthStructure {
+  id                 String                @id @default(uuid()) @db.Uuid
+  name               String
+  registrationNumber String                @unique
+  address            String
+  latitude           Float?
+  longitude          Float?
+  phone              String?
+  email              String?
+  isVerified         Boolean               @default(false)
+  status             HealthStructureStatus @default(PENDING_REVIEW)
+  verifiedAt         DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  // Relations
+  staffMembers User[]       @relation("StructureStaff")
+  alerts       Alert[]
+  bloodStocks  BloodStock[]
+  donations    Donation[]
+
+  @@map("health_structures")
+}
+
+// ============================================================
+//  ALERT
+// ============================================================
+
+model Alert {
+  id                String       @id @default(uuid()) @db.Uuid
+  healthStructureId String       @db.Uuid
+  createdByUserId   String       @db.Uuid
+  bloodType         BloodType
+  quantityNeeded    Int
+  quantityConfirmed Int          @default(0)
+  urgencyLevel      UrgencyLevel
+  status            AlertStatus  @default(ACTIVE)
+  serviceUnit       ServiceUnit  @default(GENERAL)
+  address           String?
+  latitude          Float?
+  longitude         Float?
+  radiusKm          Float        @default(10.0)
+  expiresAt         DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  healthStructure HealthStructure @relation(fields: [healthStructureId], references: [id])
+  createdBy       User            @relation("AlertCreator", fields: [createdByUserId], references: [id])
+  alertResponses  AlertResponse[]
+  notifications   Notification[]
+
+  @@index([status, createdAt])
+  @@map("alerts")
+}
+
+// ============================================================
+//  ALERT RESPONSE ("J'y vais" / "Pas disponible")
+// ============================================================
+
+model AlertResponse {
+  id          String              @id @default(uuid()) @db.Uuid
+  alertId     String              @db.Uuid
+  donorId     String              @db.Uuid
+  status      AlertResponseStatus @default(CONFIRMED)
+  etaMinutes  Float?
+  respondedAt DateTime            @default(now())
+  arrivedAt   DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  qrCode      String?
+
+  // Relations
+  alert    Alert     @relation(fields: [alertId], references: [id])
+  donor    User      @relation(fields: [donorId], references: [id])
+  donation Donation?
+
+  @@unique([alertId, donorId])
+  @@map("alert_responses")
+}
+
+// ============================================================
+//  DONATION (validée via QR Code)
+// ============================================================
+
+model Donation {
+  id                String    @id @default(uuid()) @db.Uuid
+  donorId           String    @db.Uuid
+  alertResponseId   String?   @unique @db.Uuid
+  healthStructureId String    @db.Uuid
+  validatedByUserId String?   @db.Uuid
+  isDone            Boolean   @default(false)
+  pointsAwarded     Int       @default(0)
+  testResultsJson   String?
+  notes             String?
+  donatedAt         DateTime?
+  validatedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  donor           User            @relation("DonorDonations", fields: [donorId], references: [id])
+  alertResponse   AlertResponse?  @relation(fields: [alertResponseId], references: [id])
+  healthStructure HealthStructure @relation(fields: [healthStructureId], references: [id])
+  validatedBy     User?           @relation("ValidatorDonations", fields: [validatedByUserId], references: [id])
+
+  @@index([donorId, createdAt])
+  @@map("donations")
+}
+
+// ============================================================
+//  JAMBAAR LIFE — Gamification
+// ============================================================
+
+model JambaarsProfile {
+  id                 String     @id @default(uuid()) @db.Uuid
+  userId             String     @unique @db.Uuid
+  totalPoints        Int        @default(0)
+  currentGrade       DonorGrade @default(ASPIRANT)
+  donationCount      Int        @default(0)
+  livesSavedEstimate Int        @default(0)
+  noShowCount        Int        @default(0)
+  lastDonationAt     DateTime?
+  nextEligibilityAt  DateTime?
+  city               String?
+  district           String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([city, totalPoints])
+  @@index([district, totalPoints])
+  @@map("jambars_profiles")
+}
+
+// ============================================================
+//  BADGES
+// ============================================================
+
+model Badge {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String
+  iconUrl     String?
+  criteria    String
+  isActive    Boolean  @default(true)
+  isSeasonal  Boolean  @default(false)
+  season      String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @db.Uuid
+  badgeId  String   @db.Uuid
+  earnedAt DateTime @default(now())
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+// ============================================================
+//  PARTENAIRES & RÉCOMPENSES
+// ============================================================
+
+model Partner {
+  id              String   @id @default(uuid()) @db.Uuid
+  managedByUserId String?  @db.Uuid
+  name            String
+  logoUrl         String?
+  description     String?
+  websiteUrl      String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  managedBy User?    @relation(fields: [managedByUserId], references: [id])
+  rewards   Reward[]
+
+  @@map("partners")
+}
+
+model Reward {
+  id            String     @id @default(uuid()) @db.Uuid
+  partnerId     String     @db.Uuid
+  title         String
+  description   String
+  pointsCost    Int
+  stockQuantity Int        @default(0)
+  isUnlimited   Boolean    @default(false)
+  rewardType    RewardType
+  expiresAt     DateTime?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  partner Partner  @relation(fields: [partnerId], references: [id])
+  coupons Coupon[]
+
+  @@map("rewards")
+}
+
+model Coupon {
+  id        String       @id @default(uuid()) @db.Uuid
+  rewardId  String       @db.Uuid
+  userId    String       @db.Uuid
+  code      String       @unique
+  status    CouponStatus @default(ACTIVE)
+  usedAt    DateTime?
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+
+  // Relations
+  reward Reward @relation(fields: [rewardId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("coupons")
+}
+
+// ============================================================
+//  STOCKS DE SANG
+// ============================================================
+
+model BloodStock {
+  id                String          @id @default(uuid()) @db.Uuid
+  healthStructureId String          @db.Uuid
+  bloodType         BloodType
+  quantity          Int             @default(0)
+  level             BloodStockLevel @default(ADEQUATE)
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  healthStructure HealthStructure @relation(fields: [healthStructureId], references: [id])
+
+  @@unique([healthStructureId, bloodType])
+  @@map("blood_stocks")
+}
+
+// ============================================================
+//  NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @db.Uuid
+  alertId   String?             @db.Uuid
+  type      NotificationType
+  channel   NotificationChannel @default(PUSH_EXPO)
+  payload   String
+  status    NotificationStatus  @default(PENDING)
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  // Relations
+  user  User   @relation(fields: [userId], references: [id])
+  alert Alert? @relation(fields: [alertId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// ============================================================
+//  AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  action     String
+  entityType String?
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
