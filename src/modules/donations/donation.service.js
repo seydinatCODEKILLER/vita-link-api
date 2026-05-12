@@ -16,6 +16,7 @@ import {
   BadRequestError,
   ForbiddenError,
 } from "../../shared/errors/AppError.js";
+import jambaarService from "../jambaar-profile/jambaar.service.js";
 
 class DonationService {
   // ── POST /donations/scan — Validation QR Code ────────────────
@@ -129,6 +130,12 @@ class DonationService {
     }).catch((err) =>
       logger.error({ err, donorId: donor.id }, "Erreur push donation validée"),
     );
+
+    jambaarService
+      .processBadgesAfterDonation(donor.id)
+      .catch((err) =>
+        logger.error({ err, donorId: donor.id }, "Erreur post-donation badges"),
+      );
 
     return {
       message: "Don validé avec succès. Points Jambaar crédités.",
