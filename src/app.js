@@ -40,6 +40,7 @@ import healthStructureRouter from "./modules/health-structures/healthStructure.r
 import adminRouter from "./modules/admin/admin.routes.js";
 import alertRouter from "./modules/alerts/alert.routes.js";
 import alertResponseRouter from "./modules/alert-responses/alertResponse.routes.js";
+import donationRouter from "./modules/donations/donation.routes.js";
 
 // ─── Routes ───────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
@@ -48,6 +49,8 @@ app.use("/api/health-structures", healthStructureRouter);
 app.use("/api/alert-responses", alertResponseRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/alerts", alertRouter);
+app.use("/api/donations", donationRouter);
+
 
 // ─── Health check ─────────────────────────────────────────────
 app.get("/health", (_req, res) => {
