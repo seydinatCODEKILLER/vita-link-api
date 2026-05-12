@@ -7,7 +7,10 @@ import logger from "./config/logger.js";
 import { getCorsOptions } from "./config/cors.js";
 import { generalLimiter } from "./config/rateLimiter.js";
 import { swaggerOptions } from "./config/swagger.js";
-import { errorHandler, notFoundHandler } from "./shared/middlewares/error.middleware.js";
+import {
+  errorHandler,
+  notFoundHandler,
+} from "./shared/middlewares/error.middleware.js";
 import { env } from "./config/env.js";
 
 const app = express();
@@ -34,12 +37,13 @@ app.use("/api", generalLimiter);
 import authRouter from "./modules/auth/auth.routes.js";
 import userRouter from "./modules/users/user.routes.js";
 import healthStructureRouter from "./modules/health-structures/healthStructure.routes.js";
+import adminRouter from "./modules/admin/admin.routes.js";
 
 // ─── Routes ───────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/health-structures", healthStructureRouter);
-
+app.use("/api/admin", adminRouter);
 
 // ─── Health check ─────────────────────────────────────────────
 app.get("/health", (_req, res) => {

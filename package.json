@@ -12,7 +12,12 @@
     "prisma:db-push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:reset": "prisma migrate reset"
+    "prisma:reset": "prisma migrate reset",
+    "seed": "node prisma/seeds/seed.js",
+    "seed:prod": "NODE_ENV=production node prisma/seeds/seed.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seeds/seed.js"
   },
   "dependencies": {
     "@getbrevo/brevo": "^2.0.0",
