@@ -55,8 +55,6 @@ class UserService {
 
   // ── PATCH /me/location ────────────────────────────────────────
   async updateLocation(userId, { latitude, longitude }) {
-    // Seuls les donneurs partagent leur localisation
-    // (les agents ont leur position via leur structure)
     const updated = await userRepository.updateLocation(
       userId,
       latitude,
@@ -92,7 +90,6 @@ class UserService {
 
   // ── DELETE /me ────────────────────────────────────────────────
   async deleteMe(userId, userRole) {
-    // Les admins ne peuvent pas supprimer leur propre compte via cette route
     if (userRole === "ADMIN") {
       throw new ForbiddenError(
         "Les administrateurs ne peuvent pas supprimer leur compte via cette route",

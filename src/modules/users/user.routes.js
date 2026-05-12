@@ -58,7 +58,7 @@ router.use(authenticate);
  *                       nullable: true
  *                       properties:
  *                         totalPoints:       { type: integer, example: 620 }
- *                         currentGrade:      { type: string, example: "GUERRIER" }
+ *                         currentGrade:      { type: string, example: "SENTINELLE" }
  *                         donationCount:     { type: integer, example: 3 }
  *                         livesSavedEstimate: { type: integer, example: 9 }
  *                         nextEligibilityAt: { type: string, format: date-time, nullable: true }
