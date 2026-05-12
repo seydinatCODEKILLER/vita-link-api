@@ -33,10 +33,12 @@ app.use("/api", generalLimiter);
 // ─── Importer les routes ──────────────────────────────────────
 import authRouter from "./modules/auth/auth.routes.js";
 import userRouter from "./modules/users/user.routes.js";
+import healthStructureRouter from "./modules/health-structures/healthStructure.routes.js";
 
 // ─── Routes ───────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
+app.use("/api/health-structures", healthStructureRouter);
 
 
 // ─── Health check ─────────────────────────────────────────────
