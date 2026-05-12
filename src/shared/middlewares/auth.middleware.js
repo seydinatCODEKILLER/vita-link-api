@@ -30,24 +30,30 @@ export const authenticate = async (req, _res, next) => {
         firstName: true,
         lastName: true,
         email: true,
-        role: true, // Nécessaire pour role.middleware.js
-        isActive: true, // Remplace status
-        avatarUrl: true, // Remplace avatarUrl
-        healthStructureId: true, // Nécessaire pour les guards structure
-        isStructureAdmin: true, // Nécessaire pour distinguer directeur/agent
+        role: true,
+        isActive: true,
+
+        employerStructure: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            isVerified: true,
+            address: true,
+            latitude: true,
+            longitude: true,
+          },
+        },
+
+        avatarUrl: true,
+        healthStructureId: true,
+        isStructureAdmin: true,
       },
     });
 
     if (!currentUser) {
       throw new UnauthorizedError(
         "Token appartient à un utilisateur qui n'existe plus",
-      );
-    }
-
-    // Sécurité : bloquer les comptes non vérifiés
-    if (currentUser.status === "PENDING") {
-      throw new UnauthorizedError(
-        "Veuillez vérifier votre adresse email avant de continuer",
       );
     }
 
