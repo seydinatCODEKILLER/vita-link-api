@@ -11,7 +11,10 @@ import { errorHandler, notFoundHandler } from "./shared/middlewares/error.middle
 import { env } from "./config/env.js";
 
 const app = express();
-const specs = swaggerJSDoc(swaggerOptions);
+const specs = swaggerJSDoc({
+  definition: swaggerOptions,
+  apis: swaggerOptions.apis,
+});
 
 // ─── Trust proxy (DOIT être en premier) ──────────────────────
 app.set("trust proxy", 1);
@@ -27,7 +30,11 @@ app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(specs));
 // ─── Rate limiter général ─────────────────────────────────────
 app.use("/api", generalLimiter);
 
+// ─── Importer les routes ──────────────────────────────────────
+import authRouter from "./modules/auth/auth.routes.js";
+
 // ─── Routes ───────────────────────────────────────────────────
+app.use("/api/auth", authRouter);
 
 
 // ─── Health check ─────────────────────────────────────────────

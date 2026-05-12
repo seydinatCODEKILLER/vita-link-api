@@ -18,19 +18,13 @@ export const swaggerOptions = {
     },
   },
 
-  // Les serveurs disponibles (utile si vous déployez sur Render/Railway)
   servers: [
     {
       url: "http://localhost:3000/api",
       description: "Serveur de développement local",
     },
-    // {
-    //   url: "https://vita-link-api.onrender.com/api",
-    //   description: "Serveur de production (Hackathon)",
-    // },
   ],
 
-  // Définition du système de sécurité (JWT)
   components: {
     securitySchemes: {
       BearerAuth: {
@@ -40,15 +34,120 @@ export const swaggerOptions = {
         description: "Entrez votre token JWT obtenu via les endpoints /auth/*",
       },
     },
+    schemas: {
+      Error: {
+        type: "object",
+        properties: {
+          success: { type: "boolean", example: false },
+          message: { type: "string", example: "Ressource introuvable" },
+          errors: {
+            type: "array",
+            items: { type: "object" },
+            description: "Détails des erreurs de validation Zod (optionnel)",
+          },
+        },
+      },
+      RegisterDonorDTO: {
+        type: "object",
+        required: ["firstName", "lastName", "phone", "bloodType", "gender"],
+        properties: {
+          firstName: { type: "string", example: "Aliou" },
+          lastName: { type: "string", example: "Diallo" },
+          phone: { type: "string", example: "+221771234567" },
+          email: {
+            type: "string",
+            format: "email",
+            example: "aliou@gmail.com",
+          },
+          bloodType: {
+            type: "string",
+            enum: [
+              "A_POS",
+              "A_NEG",
+              "B_POS",
+              "B_NEG",
+              "AB_POS",
+              "AB_NEG",
+              "O_POS",
+              "O_NEG",
+            ],
+          },
+          gender: { type: "string", enum: ["MALE", "FEMALE"] },
+          dateOfBirth: {
+            type: "string",
+            format: "date",
+            example: "1995-06-15",
+          },
+        },
+      },
+      RegisterHealthStructureDTO: {
+        type: "object",
+        required: [
+          "firstName",
+          "lastName",
+          "email",
+          "phone",
+          "password",
+          "structureName",
+          "registrationNumber",
+          "address",
+        ],
+        properties: {
+          firstName: { type: "string", example: "Dr. Moussa" },
+          lastName: { type: "string", example: "Sow" },
+          email: { type: "string", format: "email", example: "dr.sow@hpd.sn" },
+          phone: { type: "string", example: "+221338201234" },
+          password: {
+            type: "string",
+            format: "password",
+            example: "Motdepasse123!",
+          },
+          structureName: {
+            type: "string",
+            example: "Hôpital Principal de Dakar",
+          },
+          registrationNumber: { type: "string", example: "SN-MED-2024-001" },
+          address: { type: "string", example: "Avenue Nelson Mandela, Dakar" },
+          structurePhone: { type: "string", example: "+221338201234" },
+          structureEmail: {
+            type: "string",
+            format: "email",
+            example: "contact@hpd.sn",
+          },
+          latitude: { type: "number", example: 14.6937 },
+          longitude: { type: "number", example: -17.4441 },
+        },
+      },
+      VerifyOtpDTO: {
+        type: "object",
+        required: [
+          "email",
+          "code",
+          "phone",
+          "bloodType",
+          "gender",
+          "firstName",
+          "lastName",
+        ],
+        properties: {
+          email: {
+            type: "string",
+            format: "email",
+            example: "aliou@gmail.com",
+          },
+          code: { type: "string", example: "483921" },
+          firstName: { type: "string", example: "Aliou" },
+          lastName: { type: "string", example: "Diallo" },
+          phone: { type: "string", example: "+221771234567" },
+          bloodType: { type: "string", enum: ["O_NEG"] },
+          gender: { type: "string", enum: ["MALE"] },
+        },
+      },
+    },
   },
 
-  // Sécurité globale par défaut (optionnel, vous pouvez aussi la mettre route par route)
-  // Si vous décommentez ça, toutes les routes exigeront le token par défaut dans Swagger
-  security: [
-    { BearerAuth: [] }
-  ],
+  security: [{ BearerAuth: [] }],
 
-  // Organisation des endpoints par catégories dans l'UI
   tags: [
     { name: "Auth", description: "Inscription, Connexion, OTP et Tokens" },
     {
@@ -107,9 +206,5 @@ export const swaggerOptions = {
     },
   ],
 
-  // Où Swagger doit chercher les commentaires JSDoc pour générer la doc
-  apis: [
-    "./modules/**/*.routes.js",
-    "./shared/middlewares/*.js",
-  ],
+  apis: ["./src/modules/**/*.routes.js", "./src/shared/middlewares/*.js"],
 };

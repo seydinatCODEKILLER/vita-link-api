@@ -32,7 +32,7 @@ export const authenticate = async (req, _res, next) => {
         email: true,
         role: true, // Nécessaire pour role.middleware.js
         isActive: true, // Remplace status
-        avatarUri: true, // Remplace avatarUrl
+        avatarUrl: true, // Remplace avatarUrl
         healthStructureId: true, // Nécessaire pour les guards structure
         isStructureAdmin: true, // Nécessaire pour distinguer directeur/agent
       },
