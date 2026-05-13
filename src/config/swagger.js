@@ -23,6 +23,10 @@ export const swaggerOptions = {
       url: "http://localhost:3000/api",
       description: "Serveur de développement local",
     },
+    {
+      url: "https://vita-link-api.onrender.com/api",
+      description: "Serveur de production",
+    }
   ],
 
   components: {
