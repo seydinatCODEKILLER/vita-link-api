@@ -465,6 +465,7 @@ model Notification {
   status    NotificationStatus  @default(PENDING)
   sentAt    DateTime?
   createdAt DateTime            @default(now())
+  isRead    Boolean  @default(false)
 
   // Relations
   user  User   @relation(fields: [userId], references: [id])
