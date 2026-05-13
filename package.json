@@ -16,9 +16,6 @@
     "seed": "node prisma/seeds/seed.js",
     "seed:prod": "NODE_ENV=production node prisma/seeds/seed.js"
   },
-  "prisma": {
-    "seed": "node prisma/seeds/seed.js"
-  },
   "dependencies": {
     "@getbrevo/brevo": "^2.0.0",
     "@prisma/client": "^6.19.0",
