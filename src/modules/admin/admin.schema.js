@@ -27,14 +27,8 @@ export const GetUsersSchema = z.object({
       .transform((v) =>
         v === "true" ? true : v === "false" ? false : undefined,
       ),
-    page: z
-      .string()
-      .optional()
-      .transform((v) => (v ? parseInt(v) : 1)),
-    limit: z
-      .string()
-      .optional()
-      .transform((v) => (v ? parseInt(v) : 20)),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
   }),
 });
 

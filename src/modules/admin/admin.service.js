@@ -24,28 +24,34 @@ class AdminService {
   }
 
   // ── PATCH /admin/users/:id/suspend ───────────────────────────
-  async suspendUser(id, reason) {
-    const user = await adminRepository.findUserById(id);
+  async suspendUser(targetId, adminId, reason) {
+    const user = await adminRepository.findUserById(targetId);
     if (!user) throw new NotFoundError("Utilisateur introuvable");
     if (!user.isActive)
       throw new BadRequestError("Cet utilisateur est déjà suspendu");
 
-    const updated = await adminRepository.suspendUser(id, reason);
+    // ✅ On passe adminId
+    const updated = await adminRepository.suspendUser(
+      targetId,
+      adminId,
+      reason,
+    );
 
-    logger.logEvent("ADMIN_USER_SUSPENDED", { targetId: id, reason });
+    logger.logEvent("ADMIN_USER_SUSPENDED", { targetId, adminId, reason });
     return updated;
   }
 
   // ── PATCH /admin/users/:id/reactivate ────────────────────────
-  async reactivateUser(id) {
-    const user = await adminRepository.findUserById(id);
+  async reactivateUser(targetId, adminId) {
+    const user = await adminRepository.findUserById(targetId);
     if (!user) throw new NotFoundError("Utilisateur introuvable");
     if (user.isActive)
       throw new BadRequestError("Cet utilisateur est déjà actif");
 
-    const updated = await adminRepository.reactivateUser(id);
+    // ✅ On passe adminId
+    const updated = await adminRepository.reactivateUser(targetId, adminId);
 
-    logger.logEvent("ADMIN_USER_REACTIVATED", { targetId: id });
+    logger.logEvent("ADMIN_USER_REACTIVATED", { targetId, adminId });
     return updated;
   }
 
@@ -55,20 +61,30 @@ class AdminService {
   }
 
   // ── PATCH /admin/health-structures/:id/verify ─────────────────
-  async verifyStructure(id) {
-    const updated = await adminRepository.verifyStructure(id);
-    if (!updated) throw new NotFoundError("Structure introuvable");
+  async verifyStructure(id, adminId) {
+    const existing = await adminRepository.findStructureById(id);
+    if (!existing) throw new NotFoundError("Structure introuvable");
 
-    logger.logEvent("STRUCTURE_VERIFIED", { structureId: id });
+    // ✅ On passe adminId
+    const updated = await adminRepository.verifyStructure(id, adminId);
+
+    logger.logEvent("STRUCTURE_VERIFIED", { structureId: id, adminId });
     return updated;
   }
 
   // ── PATCH /admin/health-structures/:id/suspend ────────────────
-  async suspendStructure(id, reason) {
-    const updated = await adminRepository.suspendStructure(id, reason);
-    if (!updated) throw new NotFoundError("Structure introuvable");
+  async suspendStructure(id, adminId, reason) {
+    const existing = await adminRepository.findStructureById(id);
+    if (!existing) throw new NotFoundError("Structure introuvable");
 
-    logger.logEvent("STRUCTURE_SUSPENDED", { structureId: id, reason });
+    // ✅ On passe adminId
+    const updated = await adminRepository.suspendStructure(id, adminId, reason);
+
+    logger.logEvent("STRUCTURE_SUSPENDED", {
+      structureId: id,
+      adminId,
+      reason,
+    });
     return updated;
   }
 

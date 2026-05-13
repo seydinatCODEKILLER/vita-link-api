@@ -1,7 +1,6 @@
 import adminService from "./admin.service.js";
 
 class AdminController {
-
   // GET /admin/dashboard
   async getDashboard(req, res, next) {
     try {
@@ -37,6 +36,7 @@ class AdminController {
     try {
       const user = await adminService.suspendUser(
         req.validated.params.id,
+        req.user.id,
         req.validated.body?.reason,
       );
       res.status(200).json({ success: true, user });
@@ -48,7 +48,10 @@ class AdminController {
   // PATCH /admin/users/:id/reactivate
   async reactivateUser(req, res, next) {
     try {
-      const user = await adminService.reactivateUser(req.validated.params.id);
+      const user = await adminService.reactivateUser(
+        req.validated.params.id,
+        req.user.id,
+      );
       res.status(200).json({ success: true, user });
     } catch (err) {
       next(err);
@@ -72,6 +75,7 @@ class AdminController {
     try {
       const structure = await adminService.verifyStructure(
         req.validated.params.id,
+        req.user.id,
       );
       res.status(200).json({ success: true, structure });
     } catch (err) {
@@ -84,6 +88,7 @@ class AdminController {
     try {
       const structure = await adminService.suspendStructure(
         req.validated.params.id,
+        req.user.id,
         req.validated.body?.reason,
       );
       res.status(200).json({ success: true, structure });

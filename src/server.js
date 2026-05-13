@@ -15,7 +15,7 @@ const startServer = async () => {
     const httpServer = createServer(app);
 
     // Initialiser Socket.io sur le même serveur HTTP
-    initSocket(httpServer);
+    const io = initSocket(httpServer);
 
     httpServer.listen(env.PORT, "0.0.0.0", () => {
       logger.info(`Vital-Link API démarrée sur http://localhost:${env.PORT}`);
@@ -25,6 +25,9 @@ const startServer = async () => {
 
     const shutdown = async (signal) => {
       logger.warn(`Signal ${signal} reçu — arrêt en cours...`);
+
+      io.disconnectSockets(true);
+      io.close();
 
       httpServer.close(async () => {
         await prisma.$disconnect();

@@ -1,4 +1,3 @@
-// admin/admin.repository.js
 import { prisma } from "../../config/database.js";
 
 // Admin n'hérite PAS de BaseRepository
@@ -166,10 +165,10 @@ class AdminRepository {
     });
   }
 
-  suspendUser(id, reason) {
+  suspendUser(targetId, adminId, reason) {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.update({
-        where: { id },
+        where: { id: targetId },
         data: {
           isActive: false,
           refreshToken: null,
@@ -180,10 +179,10 @@ class AdminRepository {
 
       await tx.auditLog.create({
         data: {
-          userId: id,
+          userId: adminId, // ✅ C'est maintenant l'ID de l'Admin
           action: "USER_SUSPENDED",
           entityType: "USER",
-          entityId: id,
+          entityId: targetId,
           details: reason ? JSON.stringify({ reason }) : null,
         },
       });
@@ -192,20 +191,20 @@ class AdminRepository {
     });
   }
 
-  reactivateUser(id) {
+  reactivateUser(targetId, adminId) {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.update({
-        where: { id },
+        where: { id: targetId },
         data: { isActive: true },
         select: { id: true, firstName: true, lastName: true, role: true },
       });
 
       await tx.auditLog.create({
         data: {
-          userId: id,
+          userId: adminId, // ✅ C'est maintenant l'ID de l'Admin
           action: "USER_REACTIVATED",
           entityType: "USER",
-          entityId: id,
+          entityId: targetId,
         },
       });
 
@@ -244,7 +243,7 @@ class AdminRepository {
     ]).then(([data, total]) => ({ data, total }));
   }
 
-  verifyStructure(id) {
+  verifyStructure(id, adminId) {
     return prisma.$transaction(async (tx) => {
       const structure = await tx.healthStructure.update({
         where: { id },
@@ -258,6 +257,7 @@ class AdminRepository {
 
       await tx.auditLog.create({
         data: {
+          userId: adminId,
           action: "STRUCTURE_VERIFIED",
           entityType: "HEALTH_STRUCTURE",
           entityId: id,
@@ -268,7 +268,7 @@ class AdminRepository {
     });
   }
 
-  suspendStructure(id, reason) {
+  suspendStructure(id, adminId, reason) {
     return prisma.$transaction(async (tx) => {
       const structure = await tx.healthStructure.update({
         where: { id },
@@ -278,6 +278,7 @@ class AdminRepository {
 
       await tx.auditLog.create({
         data: {
+          userId: adminId, // ✅ C'est maintenant l'ID de l'Admin
           action: "STRUCTURE_SUSPENDED",
           entityType: "HEALTH_STRUCTURE",
           entityId: id,
@@ -320,6 +321,13 @@ class AdminRepository {
       }),
       prisma.auditLog.count({ where }),
     ]).then(([data, total]) => ({ data, total }));
+  }
+
+  findStructureById(id) {
+    return prisma.healthStructure.findUnique({
+      where: { id },
+      select: { id: true },
+    });
   }
 }
 
