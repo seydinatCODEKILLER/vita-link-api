@@ -43,6 +43,7 @@ import alertResponseRouter from "./modules/alert-responses/alertResponse.routes.
 import donationRouter from "./modules/donations/donation.routes.js";
 import jambaarRouter from "./modules/jambaar-profile/jambaar.routes.js";
 import badgeRouter from "./modules/badges/badge.routes.js";
+import partnerRouter from "./modules/partners/partner.routes.js";
 
 // ─── Routes ───────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
@@ -54,6 +55,7 @@ app.use("/api/alerts", alertRouter);
 app.use("/api/donations", donationRouter);
 app.use("/api/jambaar", jambaarRouter);
 app.use("/api/badges", badgeRouter);
+app.use("/api/partners", partnerRouter);
 
 // ─── Health check ─────────────────────────────────────────────
 app.get("/health", (_req, res) => {
