@@ -34,6 +34,7 @@ class PartnerController {
     try {
       const partner = await partnerService.createPartner(
         req.validated.body,
+        req.file, // Fichier logo uploadé
         req.user.id,
       );
       res.status(201).json({ success: true, partner });
@@ -48,6 +49,7 @@ class PartnerController {
       const partner = await partnerService.updatePartner(
         req.validated.params.id,
         req.validated.body,
+        req.file, // Fichier logo uploadé (optionnel)
       );
       res.status(200).json({ success: true, partner });
     } catch (err) {

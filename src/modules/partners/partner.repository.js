@@ -79,6 +79,10 @@ class PartnerRepository extends BaseRepository {
       select: { id: true, name: true, isActive: true },
     });
   }
+
+  findByName(name) {
+    return this.model.findUnique({ where: { name } });
+  }
 }
 
 export default new PartnerRepository();

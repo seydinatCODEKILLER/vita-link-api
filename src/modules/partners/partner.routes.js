@@ -9,6 +9,8 @@ import {
   UpdatePartnerSchema,
   DeactivatePartnerSchema,
 } from "./partner.schema.js";
+import { uploadSingle } from "../../shared/middlewares/upload.middleware.js";
+import { sanitizeBody } from "../../shared/middlewares/sanitize.middleware.js";
 
 const router = Router();
 
@@ -74,32 +76,37 @@ router.get(
  * @swagger
  * /partners:
  *   post:
- *     summary: Ajouter un nouveau partenaire (Admin)
+ *     summary: Ajouter un nouveau partenaire avec logo (Admin)
+ *     consumes:
+ *       - multipart/form-data
  *     tags: [Partners]
  *     security:
  *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required: [name]
  *             properties:
+ *               logo:
+ *                 type: string
+ *                 format: binary
+ *                 description: "Logo du partenaire (PNG/JPG, max 5MB)"
  *               name:        { type: string, example: "Orange Sonatel" }
- *               description: { type: string, example: "Leader des télécoms au Sénégal" }
- *               logoUrl:     { type: string, format: url, example: "https://res.cloudinary.com/demo/vita-link/orange.png" }
- *               websiteUrl:  { type: string, format: url, example: "https://www.sonatel.sn" }
+ *               description: { type: string, example: "Leader des télécoms" }
+ *               websiteUrl:  { type: string, format: url }
  *     responses:
  *       201:
  *         description: Partenaire créé
- *       403:
- *         description: Accès refusé
  */
 router.post(
   "/",
   crudLimiter,
   requireRole("ADMIN"),
+  uploadSingle("logo"),
+  sanitizeBody,
   validate(CreatePartnerSchema),
   partnerController.createPartner.bind(partnerController),
 );
@@ -108,7 +115,9 @@ router.post(
  * @swagger
  * /partners/{id}:
  *   patch:
- *     summary: Modifier un partenaire (Admin)
+ *     summary: Modifier un partenaire et/ou son logo (Admin)
+ *     consumes:
+ *       - multipart/form-data
  *     tags: [Partners]
  *     security:
  *       - BearerAuth: []
@@ -119,13 +128,13 @@ router.post(
  *         schema: { type: string, format: uuid }
  *     requestBody:
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
+ *               logo:        { type: string, format: binary }
  *               name:        { type: string }
  *               description: { type: string }
- *               logoUrl:     { type: string, format: url }
  *               websiteUrl:  { type: string, format: url }
  *     responses:
  *       200:
@@ -135,6 +144,8 @@ router.patch(
   "/:id",
   crudLimiter,
   requireRole("ADMIN"),
+  uploadSingle("logo"),
+  sanitizeBody,
   validate(UpdatePartnerSchema),
   partnerController.updatePartner.bind(partnerController),
 );
