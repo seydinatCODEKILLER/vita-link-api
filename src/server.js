@@ -5,6 +5,7 @@ import { prisma } from "./config/database.js";
 import { env } from "./config/env.js";
 import logger from "./config/logger.js";
 import { initSocket } from "./config/socket.js";
+import { startCronJobs } from "./jobs/index.js";
 
 const startServer = async () => {
   try {
@@ -16,6 +17,8 @@ const startServer = async () => {
 
     // Initialiser Socket.io sur le même serveur HTTP
     const io = initSocket(httpServer);
+
+    startCronJobs();
 
     httpServer.listen(env.PORT, "0.0.0.0", () => {
       logger.info(`Vital-Link API démarrée sur http://localhost:${env.PORT}`);
