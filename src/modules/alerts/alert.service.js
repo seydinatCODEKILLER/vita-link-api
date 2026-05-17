@@ -128,7 +128,6 @@ class AlertService {
 
   // ── GET /alerts — Alertes actives autour du donneur ─────────
   async getNearbyAlerts({ lat, lng }, user) {
-    // Fallback : coordonnées du profil si non fournies en query
     const latitude = lat ?? user.latitude;
     const longitude = lng ?? user.longitude;
 
@@ -141,14 +140,33 @@ class AlertService {
     const rawAlerts = await alertRepository.findNearbyActive(
       latitude,
       longitude,
-      15, // rayon par défaut donneur : 15 km
+      15,
     );
 
-    // Enrichir chaque alerte avec la distance formatée
-    return rawAlerts.map((a) => ({
-      ...a,
-      distance_km: Math.round(a.distance_km * 10) / 10,
-    }));
+    // ✅ MAPPING : On transforme les données plates de la requête SQL brute
+    // en objet imbriqué correspondant au type TypeScript Alert du mobile
+    return rawAlerts.map((a) => {
+      const {
+        structureId,
+        structureName,
+        structureAddress,
+        structureLatitude,
+        structureLongitude,
+        ...alertData
+      } = a;
+
+      return {
+        ...alertData,
+        distance_km: Math.round(a.distance_km * 10) / 10,
+        healthStructure: {
+          id: structureId,
+          name: structureName,
+          address: structureAddress,
+          latitude: structureLatitude,
+          longitude: structureLongitude,
+        },
+      };
+    });
   }
 
   // ── GET /alerts/:id — Détail ─────────────────────────────────

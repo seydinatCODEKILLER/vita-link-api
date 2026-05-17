@@ -92,53 +92,53 @@ class AlertRepository extends BaseRepository {
    * Filtre sur : status=ACTIVE + non expirée + dans le rayon de chaque alerte.
    * Retourne aussi la distance calculée pour l'affichage côté client.
    */
+
   findNearbyActive(latitude, longitude, radiusKm) {
-    // On compare la distance du donneur au centre de l'alerte
-    // versus le rayon de diffusion de l'alerte (alert.radiusKm)
-    // La variable radiusKm ici est le rayon de recherche du donneur (fallback)
     return this.prisma.$queryRaw`
-      SELECT
-        a.id,
-        a."bloodType",
-        a."quantityNeeded",
-        a."quantityConfirmed",
-        a."urgencyLevel",
-        a.status,
-        a."serviceUnit",
-        a.address,
-        a.latitude,
-        a.longitude,
-        a."radiusKm",
-        a."expiresAt",
-        a."createdAt",
-        hs.id   AS "structureId",
-        hs.name AS "structureName",
-        hs.address AS "structureAddress",
-        (
-          6371 * acos(
-            LEAST(1.0, cos(radians(${latitude})) * cos(radians(a.latitude)) *
-            cos(radians(a.longitude) - radians(${longitude})) +
-            sin(radians(${latitude})) * sin(radians(a.latitude)))
-          )
-        ) AS distance_km
-      FROM alerts a
-      JOIN health_structures hs ON hs.id = a."healthStructureId"
-      WHERE
-        a.status = 'ACTIVE'
-        AND (a."expiresAt" IS NULL OR a."expiresAt" > NOW())
-        AND a.latitude  IS NOT NULL
-        AND a.longitude IS NOT NULL
-        AND (
-          6371 * acos(
-            LEAST(1.0, cos(radians(${latitude})) * cos(radians(a.latitude)) *
-            cos(radians(a.longitude) - radians(${longitude})) +
-            sin(radians(${latitude})) * sin(radians(a.latitude)))
-          )
-        ) <= LEAST(a."radiusKm", ${radiusKm})
-      ORDER BY
-        CASE a."urgencyLevel" WHEN 'VITAL' THEN 0 ELSE 1 END ASC,
-        distance_km ASC
-    `;
+    SELECT
+      a.id,
+      a."bloodType",
+      a."quantityNeeded",
+      a."quantityConfirmed",
+      a."urgencyLevel",
+      a.status,
+      a."serviceUnit",
+      a.address,
+      a.latitude,
+      a.longitude,
+      a."radiusKm",
+      a."expiresAt",
+      a."createdAt",
+      hs.id   AS "structureId",
+      hs.name AS "structureName",
+      hs.address AS "structureAddress",
+      hs.latitude AS "structureLatitude",
+      hs.longitude AS "structureLongitude",
+      (
+        6371 * acos(
+          LEAST(1.0, cos(radians(${latitude})) * cos(radians(a.latitude)) *
+          cos(radians(a.longitude) - radians(${longitude})) +
+          sin(radians(${latitude})) * sin(radians(a.latitude)))
+        )
+      ) AS distance_km
+    FROM alerts a
+    JOIN health_structures hs ON hs.id = a."healthStructureId"
+    WHERE
+      a.status = 'ACTIVE'
+      AND (a."expiresAt" IS NULL OR a."expiresAt" > NOW())
+      AND a.latitude  IS NOT NULL
+      AND a.longitude IS NOT NULL
+      AND (
+        6371 * acos(
+          LEAST(1.0, cos(radians(${latitude})) * cos(radians(a.latitude)) *
+          cos(radians(a.longitude) - radians(${longitude})) +
+          sin(radians(${latitude})) * sin(radians(a.latitude)))
+        )
+      ) <= LEAST(a."radiusKm", ${radiusKm})
+    ORDER BY
+      CASE a."urgencyLevel" WHEN 'VITAL' THEN 0 ELSE 1 END ASC,
+      distance_km ASC
+  `;
   }
 
   findByStructure(structureId, { page, limit, status }) {
