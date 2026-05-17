@@ -17,6 +17,28 @@ router.use(authenticate);
 
 /**
  * @swagger
+ * /alert-responses/active-confirmation:
+ *   get:
+ *     summary: Vérifie si le donneur a déjà une confirmation active
+ *     description: |
+ *       Retourne `hasActiveConfirmation: true` si le donneur a confirmé ("J'y vais")
+ *       une alerte qui est toujours en cours (ACTIVE).
+ *       Permet au mobile de désactiver le bouton "J'y vais" sur les autres alertes.
+ *     tags: [Alert Responses]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Statut de l'engagement
+ */
+router.get(
+  "/active-confirmation",
+  requireRole("DONOR"),
+  alertResponseController.checkActiveConfirmation.bind(alertResponseController),
+);
+
+/**
+ * @swagger
  * /alert-responses/{alertId}/confirm:
  *   post:
  *     summary: "J'y vais — Confirmation du donneur"
@@ -156,6 +178,42 @@ router.patch(
   requireRole("HEALTH_STRUCTURE", "ADMIN"),
   validate(ArrivedResponseSchema),
   alertResponseController.markArrived.bind(alertResponseController),
+);
+
+/**
+ * @swagger
+ * /alert-responses/{alertId}/cancel:
+ *   patch:
+ *     summary: "Annuler sa confirmation — Donneur"
+ *     description: |
+ *       Le donneur annule sa confirmation ("J'y vais") pour une alerte.
+ *       - Passe le statut de la réponse à CANCELLED.
+ *       - Décrémente le quota de confirmés sur l'alerte.
+ *       - Si le quota n'est plus atteint, l'alerte est automatiquement réouverte (ACTIVE).
+ *       - L'hôpital est notifié en temps réel.
+ *     tags: [Alert Responses]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: alertId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Annulation enregistrée
+ *       400:
+ *         description: La réponse n'était pas en statut CONFIRMED
+ *       404:
+ *         description: Réponse introuvable
+ */
+router.patch(
+  "/:alertId/cancel",
+  requireRole("DONOR"),
+  validate(ConfirmResponseSchema),
+  alertResponseController.cancelConfirmation.bind(alertResponseController),
 );
 
 /**

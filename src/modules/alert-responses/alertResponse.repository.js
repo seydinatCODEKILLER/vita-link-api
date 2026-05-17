@@ -38,6 +38,19 @@ class AlertResponseRepository extends BaseRepository {
       },
     });
   }
+
+  findActiveConfirmationsForDonor(donorId) {
+    return this.prisma.alertResponse.findMany({
+      where: {
+        donorId,
+        status: "CONFIRMED",
+        alert: {
+          status: { in: ["ACTIVE", "QUOTA_REACHED"] },
+        },
+      },
+    });
+  }
+  
   // ⚠️ Idéalement dans JambaarsProfileRepository — placé ici pour respecter le contrat service
   /** Trouver le profil Jambaars d'un donneur (vérification d'éligibilité) */
   findDonorProfile(userId) {

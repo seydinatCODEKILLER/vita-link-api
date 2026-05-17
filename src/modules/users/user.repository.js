@@ -135,6 +135,43 @@ class UserRepository extends BaseRepository {
       select: { id: true },
     });
   }
+
+  /**
+   * Trouve l'engagement actif d'un donneur :
+   * - Il a répondu "J'y vais" (CONFIRMED)
+   * - L'alerte est toujours en cours (ACTIVE ou QUOTA_REACHED)
+   * Retourne le QR Code et les infos de l'alerte associée.
+   */
+  findActiveEngagement(donorId) {
+    return this.prisma.alertResponse.findFirst({
+      where: {
+        donorId: donorId,
+        status: "CONFIRMED", // Il a confirmé
+        alert: {
+          status: { in: ["ACTIVE", "QUOTA_REACHED"] }, // Alerte toujours ouverte
+        },
+      },
+      select: {
+        id: true,
+        qrCode: true,
+        etaMinutes: true,
+        alert: {
+          select: {
+            id: true,
+            bloodType: true,
+            urgencyLevel: true,
+            healthStructure: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 }
 
 export default new UserRepository();

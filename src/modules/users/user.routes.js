@@ -19,6 +19,50 @@ router.use(authenticate);
 
 /**
  * @swagger
+ * /users/me/active-engagement:
+ *   get:
+ *     summary: Engagement actif du donneur (QR Code en cours)
+ *     description: |
+ *       Retourne les informations de l'engagement actif du donneur connecté.
+ *       Un engagement est actif si le donneur a confirmé une alerte ("J'y vais")
+ *       et que cette alerte est toujours en cours (ACTIVE ou QUOTA_REACHED).
+ *       Permet au mobile d'afficher la bannière d'accès rapide au QR Code.
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Engagement actif (peut être null)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 engagement:
+ *                   type: object
+ *                   nullable: true
+ *                   properties:
+ *                     id: { type: string }
+ *                     qrCode: { type: string, example: "VITA-X9K2-M4P7" }
+ *                     alert:
+ *                       type: object
+ *                       properties:
+ *                         id: { type: string }
+ *                         bloodType: { type: string }
+ *                         urgencyLevel: { type: string }
+ *                         healthStructure: { type: object }
+ *       403:
+ *         description: Réservé aux donneurs
+ */
+router.get(
+  "/me/active-engagement",
+  crudLimiter,
+  userController.getActiveEngagement.bind(userController),
+);
+
+/**
+ * @swagger
  * /users/me:
  *   get:
  *     summary: Profil complet de l'utilisateur connecté

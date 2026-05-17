@@ -15,6 +15,14 @@ class AlertResponseService {
     const alert = await alertResponseRepository.findActiveAlert(alertId);
     if (!alert) throw new NotFoundError("Alerte introuvable ou expirée");
 
+    const activeConfirmations =
+      await alertResponseRepository.findActiveConfirmationsForDonor(donorId);
+    if (activeConfirmations.length > 0) {
+      throw new BadRequestError(
+        "Vous avez déjà confirmé votre venue pour une autre alerte en cours. Vous ne pouvez pas vous engager pour celle-ci.",
+      );
+    }
+
     // 2. Vérification d'éligibilité médicale (via repository, plus de prisma direct)
     const donorProfile =
       await alertResponseRepository.findDonorProfile(donorId);
@@ -208,6 +216,60 @@ class AlertResponseService {
       message:
         "Signalement enregistré. Le système va ajuster le quota de l'alerte.",
     };
+  }
+
+  // ── GET /check-active-confirmation ────────────────────────────
+  async checkActiveConfirmation(donorId) {
+    const activeConfirmations =
+      await alertResponseRepository.findActiveConfirmationsForDonor(donorId);
+
+    return {
+      hasActiveConfirmation: activeConfirmations.length > 0,
+    };
+  }
+
+  // ── PATCH /cancel ────────────────────────────────────────────
+  async cancelConfirmation(alertId, donorId) {
+    const response = await alertResponseRepository.findByAlertAndDonor(
+      alertId,
+      donorId,
+    );
+
+    if (!response) {
+      throw new NotFoundError("Aucune réponse trouvée pour cette alerte");
+    }
+
+    if (response.status !== "CONFIRMED") {
+      throw new BadRequestError("Seule une confirmation peut être annulée");
+    }
+
+    // 1. Mettre à jour le statut de la réponse
+    await alertResponseRepository.updateStatus(response.id, {
+      status: "CANCELLED",
+    });
+
+    // 2. Décrémenter le quota de l'alerte
+    await alertResponseRepository.decrementAlertConfirmedCount(alertId);
+
+    // 3. Réouvrir l'alerte si le quota n'est plus atteint
+    const isReopened =
+      await alertResponseRepository.reopenAlertIfNecessary(alertId);
+
+    // 4. Notifier l'hôpital en temps réel
+    emitToAlert(alertId, "response:cancelled", {
+      responseId: response.id,
+      donorId,
+      status: "CANCELLED",
+      isReopened,
+    });
+
+    logger.logEvent("DONOR_CANCELLED_CONFIRMATION", {
+      alertId,
+      donorId,
+      isReopened,
+    });
+
+    return { message: "Votre venue a été annulée. L'hôpital a été prévenu." };
   }
 }
 

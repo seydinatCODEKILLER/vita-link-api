@@ -15,6 +15,16 @@ class UserService {
     return user;
   }
 
+  // ── GET /me/active-engagement ────────────────────────────────
+  async getActiveEngagement(userId, userRole) {
+    if (userRole !== "DONOR") {
+      throw new ForbiddenError("Réservé aux donneurs");
+    }
+
+    const engagement = await userRepository.findActiveEngagement(userId);
+    return engagement;
+  }
+
   // ── PATCH /me — infos générales ─────────────────────────────
   async updateProfile(userId, data) {
     const user = await userRepository.updateProfile(userId, data);

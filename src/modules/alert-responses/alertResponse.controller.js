@@ -7,7 +7,7 @@ class AlertResponseController {
       const result = await alertResponseService.confirm(
         req.validated.params.alertId,
         req.user.id,
-        req.validated.body
+        req.validated.body,
       );
       res.status(200).json({ success: true, ...result });
     } catch (err) {
@@ -20,7 +20,7 @@ class AlertResponseController {
     try {
       const result = await alertResponseService.decline(
         req.validated.params.alertId,
-        req.user.id
+        req.user.id,
       );
       res.status(200).json({ success: true, ...result });
     } catch (err) {
@@ -33,8 +33,8 @@ class AlertResponseController {
     try {
       const result = await alertResponseService.markArrived(
         req.validated.params.alertId,
-        req.validated.body.donorId,     // ← donorId depuis le body
-        req.user.id                      // agentId
+        req.validated.body.donorId, // ← donorId depuis le body
+        req.user.id, // agentId
       );
       res.status(200).json({ success: true, ...result });
     } catch (err) {
@@ -47,8 +47,32 @@ class AlertResponseController {
     try {
       const result = await alertResponseService.markNoShow(
         req.validated.params.alertId,
-        req.validated.body.donorId,     // ← donorId depuis le body
-        req.user.id                      // agentId
+        req.validated.body.donorId, // ← donorId depuis le body
+        req.user.id, // agentId
+      );
+      res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // GET /active-confirmation
+  async checkActiveConfirmation(req, res, next) {
+    try {
+      const result = await alertResponseService.checkActiveConfirmation(
+        req.user.id,
+      );
+      res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async cancelConfirmation(req, res, next) {
+    try {
+      const result = await alertResponseService.cancelConfirmation(
+        req.validated.params.alertId,
+        req.user.id,
       );
       res.status(200).json({ success: true, ...result });
     } catch (err) {

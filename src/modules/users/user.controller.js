@@ -1,7 +1,6 @@
 import userService from "./user.service.js";
 
 class UserController {
-
   // GET /me
   async getMe(req, res, next) {
     try {
@@ -12,10 +11,26 @@ class UserController {
     }
   }
 
+  // GET /me/active-engagement
+  async getActiveEngagement(req, res, next) {
+    try {
+      const engagement = await userService.getActiveEngagement(
+        req.user.id,
+        req.user.role,
+      );
+      res.status(200).json({ success: true, engagement });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   // PATCH /me
   async updateProfile(req, res, next) {
     try {
-      const user = await userService.updateProfile(req.user.id, req.validated.body);
+      const user = await userService.updateProfile(
+        req.user.id,
+        req.validated.body,
+      );
       res.status(200).json({ success: true, user });
     } catch (err) {
       next(err);
@@ -35,7 +50,10 @@ class UserController {
   // PATCH /me/location
   async updateLocation(req, res, next) {
     try {
-      const user = await userService.updateLocation(req.user.id, req.validated.body);
+      const user = await userService.updateLocation(
+        req.user.id,
+        req.validated.body,
+      );
       res.status(200).json({ success: true, user });
     } catch (err) {
       next(err);
@@ -48,7 +66,7 @@ class UserController {
       const user = await userService.updateAvailability(
         req.user.id,
         req.validated.body,
-        req.user.role
+        req.user.role,
       );
       res.status(200).json({ success: true, user });
     } catch (err) {
@@ -59,7 +77,10 @@ class UserController {
   // PATCH /me/expo-token
   async updateExpoToken(req, res, next) {
     try {
-      const user = await userService.updateExpoToken(req.user.id, req.validated.body);
+      const user = await userService.updateExpoToken(
+        req.user.id,
+        req.validated.body,
+      );
       res.status(200).json({ success: true, user });
     } catch (err) {
       next(err);
