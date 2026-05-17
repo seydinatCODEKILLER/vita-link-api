@@ -11,12 +11,13 @@ let io = null;
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGIN?.split(",") || "*",
+      origin: "*",
+      credentials: false,
       methods: ["GET", "POST"],
-      credentials: true,
     },
     pingTimeout: 60000,
     pingInterval: 25000,
+    allowEIO3: true,
   });
 
   // ─── Middleware auth ──────────────────────────────────────────
@@ -58,7 +59,10 @@ export const initSocket = (httpServer) => {
     const { id, firstName, lastName, role, healthStructureId } = socket.user;
     const fullName = `${firstName} ${lastName}`;
 
-    logger.info({ userId: id, role, socketId: socket.id }, `🔌 ${fullName} connecté`);
+    logger.info(
+      { userId: id, role, socketId: socket.id },
+      `🔌 ${fullName} connecté`,
+    );
 
     // ─── Room personnelle (notifs ciblées) ────────────────────
     socket.join(`user:${id}`);
@@ -70,10 +74,7 @@ export const initSocket = (httpServer) => {
     }
 
     // L'agent/directeur rejoint automatiquement la room de sa structure
-    if (
-      (role === "HEALTH_STRUCTURE") &&
-      healthStructureId
-    ) {
+    if (role === "HEALTH_STRUCTURE" && healthStructureId) {
       socket.join(`structure:${healthStructureId}`);
       logger.info(
         { userId: id, structureId: healthStructureId },
