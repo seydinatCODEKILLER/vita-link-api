@@ -19,7 +19,7 @@ export const DeclineResponseSchema = z.object({
 export const ArrivedResponseSchema = z.object({
   params: z.object({ alertId: uuidParam }),
   body: z.object({
-    donorId: uuidParam,               // ← ajout : l'agent doit identifier le donneur
+    donorId: uuidParam, // ← ajout : l'agent doit identifier le donneur
   }),
 });
 
@@ -27,6 +27,10 @@ export const ArrivedResponseSchema = z.object({
 export const NoShowResponseSchema = z.object({
   params: z.object({ alertId: uuidParam }),
   body: z.object({
-    donorId: uuidParam,               // ← ajout : l'agent doit identifier le donneur
+    donorId: uuidParam, // ← ajout : l'agent doit identifier le donneur
   }),
+});
+
+export const CancelResponseSchema = z.object({
+  params: z.object({ alertId: uuidParam }),
 });

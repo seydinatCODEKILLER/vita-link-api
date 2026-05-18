@@ -1,5 +1,6 @@
 import { BaseRepository } from "../../shared/base/base.repository.js";
 import { prisma } from "../../config/database.js";
+import { getActiveAlertFilter } from "../../shared/utils/alert.utils.js";
 
 // ─── Select partagé ───────────────────────────────────────────
 export const ME_SELECT = {
@@ -147,9 +148,7 @@ class UserRepository extends BaseRepository {
       where: {
         donorId: donorId,
         status: "CONFIRMED", // Il a confirmé
-        alert: {
-          status: { in: ["ACTIVE", "QUOTA_REACHED"] }, // Alerte toujours ouverte
-        },
+        alert: getActiveAlertFilter(),
       },
       select: {
         id: true,

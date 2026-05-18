@@ -1,5 +1,6 @@
 import { BaseRepository } from "../../shared/base/base.repository.js";
 import { prisma } from "../../config/database.js";
+import { getActiveAlertFilter } from "../../shared/utils/alert.utils.js";
 
 class AlertResponseRepository extends BaseRepository {
   constructor() {
@@ -44,9 +45,6 @@ class AlertResponseRepository extends BaseRepository {
       where: {
         donorId,
         status: "CONFIRMED",
-        alert: {
-          status: { in: ["ACTIVE", "QUOTA_REACHED"] },
-        },
       },
     });
   }

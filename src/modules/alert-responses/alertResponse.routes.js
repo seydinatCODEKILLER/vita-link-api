@@ -8,6 +8,7 @@ import {
   DeclineResponseSchema,
   ArrivedResponseSchema,
   NoShowResponseSchema,
+  CancelResponseSchema,
 } from "./alertResponse.schema.js";
 
 const router = Router();
@@ -212,7 +213,7 @@ router.patch(
 router.patch(
   "/:alertId/cancel",
   requireRole("DONOR"),
-  validate(ConfirmResponseSchema),
+  validate(CancelResponseSchema),
   alertResponseController.cancelConfirmation.bind(alertResponseController),
 );
 
