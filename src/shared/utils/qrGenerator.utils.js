@@ -1,12 +1,14 @@
 import QRCode from "qrcode";
-import { nanoid } from "nanoid";
+import { nanoid, customAlphabet } from "nanoid";
+
+const nanoidAlphaNum = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 4);
 
 /**
  * Génère un code unique court pour identifier la donation
  * Ex: "VITA-X9K2-M4P7"
  */
 export const generateDonationCode = () => {
-  return `VITA-${nanoid(4).toUpperCase()}-${nanoid(4).toUpperCase()}`;
+  return `VITA-${nanoidAlphaNum()}-${nanoidAlphaNum()}`;
 };
 
 /**
@@ -18,7 +20,7 @@ export const generateQrCodeBase64 = async (donationCode) => {
     errorCorrectionLevel: "H",
     margin: 2,
     width: 400,
-    color: { dark: "#C0392B", light: "#FFFFFF" }, // Rouge Vita-Link
+    color: { dark: "#C0392B", light: "#FFFFFF" },
   });
   return buffer.toString("base64");
 };

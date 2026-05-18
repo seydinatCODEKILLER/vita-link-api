@@ -107,6 +107,7 @@ class DonationService {
       gradeChanged,
       totalPoints: newTotalPoints,
       nextEligibilityAt,
+      updatedJambaarProfile: donation.donor.jambaarsProfile
     });
 
     // 10. Notifier la structure (dashboard stock)
