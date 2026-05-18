@@ -1,6 +1,6 @@
 import { BaseRepository } from "../../shared/base/base.repository.js";
 import { prisma } from "../../config/database.js";
-import { getActiveAlertFilter } from "../../shared/utils/alert.utils.js";
+import { getActiveAlertFilter, getEngagementAlertFilter } from "../../shared/utils/alert.utils.js";
 
 // ─── Select partagé ───────────────────────────────────────────
 export const ME_SELECT = {
@@ -147,8 +147,8 @@ class UserRepository extends BaseRepository {
     return this.prisma.alertResponse.findFirst({
       where: {
         donorId: donorId,
-        status: "CONFIRMED", // Il a confirmé
-        alert: getActiveAlertFilter(),
+        status: "CONFIRMED",
+        alert: getEngagementAlertFilter(),
       },
       select: {
         id: true,
@@ -159,6 +159,7 @@ class UserRepository extends BaseRepository {
             id: true,
             bloodType: true,
             urgencyLevel: true,
+            status: true,
             healthStructure: {
               select: {
                 id: true,
