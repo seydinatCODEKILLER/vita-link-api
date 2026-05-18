@@ -92,8 +92,7 @@ class AlertRepository extends BaseRepository {
    * Filtre sur : status=ACTIVE + non expirée + dans le rayon de chaque alerte.
    * Retourne aussi la distance calculée pour l'affichage côté client.
    */
-
-  findNearbyActive(latitude, longitude, radiusKm) {
+  findNearbyActive(latitude, longitude, radiusKm, userId) {
     return this.prisma.$queryRaw`
     SELECT
       a.id,
@@ -135,6 +134,13 @@ class AlertRepository extends BaseRepository {
           sin(radians(${latitude})) * sin(radians(a.latitude)))
         )
       ) <= LEAST(a."radiusKm", ${radiusKm})
+      AND NOT EXISTS (
+        SELECT 1 FROM alert_responses ar
+        WHERE ar."alertId" = a.id
+        -- ✅ SOLUTION : On caste le userId en UUID avec ::uuid
+        AND ar."donorId" = ${userId}::uuid
+        AND ar.status IN ('CONFIRMED', 'ARRIVED')
+      )
     ORDER BY
       CASE a."urgencyLevel" WHEN 'VITAL' THEN 0 ELSE 1 END ASC,
       distance_km ASC

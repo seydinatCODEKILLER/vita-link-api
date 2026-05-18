@@ -137,11 +137,12 @@ class AlertService {
       );
     }
 
-    const rawAlerts = await alertRepository.findNearbyActive(
-      latitude,
-      longitude,
-      15,
-    );
+  const rawAlerts = await alertRepository.findNearbyActive(
+    latitude,
+    longitude,
+    15,
+    user.id 
+  );
 
     // ✅ MAPPING : On transforme les données plates de la requête SQL brute
     // en objet imbriqué correspondant au type TypeScript Alert du mobile
