@@ -107,3 +107,8 @@ export const GetMonthlyStatsSchema = z.object({
     year: z.string().optional().transform((v) => (v ? parseInt(v) : undefined)),
   }),
 });
+
+// ─── GET /admin/stats/regions ────────────────────────────────
+export const GetRegionStatsSchema = z.object({
+  query: z.object({}).optional(), // Pas de filtres pour l'instant
+});

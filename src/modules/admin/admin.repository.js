@@ -428,6 +428,75 @@ class AdminRepository {
 
     return Object.values(statsMap);
   }
+
+    // ─── Heatmap par Région (Ville) ─────────────────────────────
+
+  async getRegionStats() {
+    // 1. Compter les donneurs actifs par ville
+    const donorsByCity = await prisma.jambaarsProfile.groupBy({
+      by: ['city'],
+      where: { 
+        city: { not: null },
+        user: { role: 'DONOR', isActive: true } 
+      },
+      _count: { city: true },
+    });
+
+    // 2. Calculer le niveau de demande (nombre d'alertes) par ville de structure
+    const alertsByCity = await prisma.alert.groupBy({
+      by: ['healthStructureId'],
+      _count: { id: true },
+    });
+
+    // Récupérer les villes des structures pour mapper les IDs
+    const structures = await prisma.healthStructure.findMany({
+      select: { id: true, address: true },
+    });
+
+    // 3. Mapper les alertes vers les villes
+    const alertsByCityMap = {};
+    const cityRegex = /Dakar|Thiès|Saint-Louis|Ziguinchor|Kaolack|Diourbel|Tambacounda|Louga|Fatick|Kolda|Matam|Sédhiou|Kédougou|Kaffrine/gi;
+
+    alertsByCity.forEach(alertGroup => {
+      const structure = structures.find(s => s.id === alertGroup.healthStructureId);
+      if (structure) {
+        // Extraction basique de la ville depuis l'adresse (ex: "Avenue X, Dakar")
+        const match = structure.address.match(cityRegex);
+        const city = match ? match[0] : 'Autre';
+        
+        if (!alertsByCityMap[city]) alertsByCityMap[city] = 0;
+        alertsByCityMap[city] += alertGroup._count.id;
+      }
+    });
+
+    // 4. Fusionner les données et calculer le demandLevel (0-100)
+    const allCities = new Set([
+      ...donorsByCity.map(d => d.city),
+      ...Object.keys(alertsByCityMap)
+    ]);
+
+    // Trouver le max d'alertes pour normaliser le niveau de demande (0-100)
+    const maxAlerts = Math.max(...Object.values(alertsByCityMap), 1);
+
+    const data = Array.from(allCities).map(city => {
+      const donorData = donorsByCity.find(d => d.city === city);
+      const donorsCount = donorData?._count.city || 0;
+      const demandCount = alertsByCityMap[city] || 0;
+
+      // Le demandLevel est un pourcentage (0 à 100) basé sur le nombre d'alertes
+      // par rapport à la zone la plus active
+      const demandLevel = Math.round((demandCount / maxAlerts) * 100);
+
+      return {
+        region: city,
+        demandLevel,
+        donorsCount,
+      };
+    });
+
+    // Trier par niveau de demande décroissant (les zones les plus chaudes en premier)
+    return data.sort((a, b) => b.demandLevel - a.demandLevel);
+  }
 }
 
 export default new AdminRepository();

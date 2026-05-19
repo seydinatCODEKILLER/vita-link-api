@@ -26,6 +26,11 @@ class AdminService {
     return adminRepository.getMonthlyStats(targetYear);
   }
 
+    // ── GET /admin/stats/regions ──────────────────────────────────
+  async getRegionStats() {
+    return adminRepository.getRegionStats();
+  }
+
   // ── GET /admin/users ─────────────────────────────────────────
   async getUsers(filters) {
     return adminRepository.findUsers(filters);

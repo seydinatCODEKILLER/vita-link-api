@@ -14,6 +14,7 @@ import {
   SuspendStructureSchema,
   GetAuditLogsSchema,
   GetMonthlyStatsSchema,
+  GetRegionStatsSchema,
 } from "./admin.schema.js";
 
 const router = Router();
@@ -81,6 +82,40 @@ router.get(
   crudLimiter,
   validate(GetMonthlyStatsSchema),
   adminController.getMonthlyStats.bind(adminController),
+);
+
+/**
+ * @swagger
+ * /admin/stats/regions:
+ *   get:
+ *     summary: Données heatmap par région
+ *     description: "Récupère le nombre de donneurs actifs et le niveau de demande (alertes) par ville/région géographique. Le demandLevel est normalisé de 0 à 100."
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Données régionales
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       region: { type: string, example: "Dakar" }
+ *                       demandLevel: { type: integer, example: 80, description: "Intensité de la demande de 0 à 100" }
+ *                       donorsCount: { type: integer, example: 45, description: "Nombre de donneurs actifs dans cette zone" }
+ */
+router.get(
+  "/stats/regions",
+  crudLimiter,
+  validate(GetRegionStatsSchema),
+  adminController.getRegionStats.bind(adminController)
 );
 
 /**

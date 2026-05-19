@@ -119,6 +119,16 @@ class AdminController {
       next(err);
     }
   }
+
+    // GET /admin/stats/regions
+  async getRegionStats(req, res, next) {
+    try {
+      const data = await adminService.getRegionStats();
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export default new AdminController();
