@@ -16,6 +16,23 @@ export const UpdateProfileSchema = z.object({
           errorMap: () => ({ message: "Genre invalide" }),
         })
         .optional(),
+      bloodType: z
+        .enum(
+          [
+            "A_POS",
+            "A_NEG",
+            "B_POS",
+            "B_NEG",
+            "AB_POS",
+            "AB_NEG",
+            "O_POS",
+            "O_NEG",
+          ],
+          {
+            errorMap: () => ({ message: "Groupe sanguin invalide" }),
+          },
+        )
+        .optional(),
       dateOfBirth: z
         .string()
         .refine((v) => !isNaN(Date.parse(v)), "Date de naissance invalide")

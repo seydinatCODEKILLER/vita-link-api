@@ -90,15 +90,50 @@ export const VerifyOtpSchema = z.object({
       .trim()
       .length(6)
       .regex(/^\d{6}$/),
-    phone: phoneSchema.optional(),
-    firstName: z.string().trim().min(2).max(50).optional(),
-    lastName: z.string().trim().min(2).max(50).optional(),
-    bloodType: z.enum(bloodTypeValues).optional(),
-    gender: z.enum(["MALE", "FEMALE"]).optional(),
+    phone: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? undefined : v))
+      .pipe(
+        z.string().regex(/^\+?[1-9]\d{7,14}$/, "Numéro de téléphone invalide"),
+      )
+      .optional(),
+
+    firstName: z
+      .string()
+      .trim()
+      .min(2, "Prénom trop court")
+      .max(50)
+      .transform((v) => (v === "" ? undefined : v))
+      .optional(),
+
+    lastName: z
+      .string()
+      .trim()
+      .min(2, "Nom trop court")
+      .max(50)
+      .transform((v) => (v === "" ? undefined : v))
+      .optional(),
+
+    bloodType: z
+      .enum(bloodTypeValues)
+      .transform((v) => (v === "" ? undefined : v))
+      .optional(),
+
+    gender: z
+      .enum(["MALE", "FEMALE"])
+      .transform((v) => (v === "" ? undefined : v))
+      .optional(),
+
     dateOfBirth: z
       .string()
-      .refine((v) => !isNaN(Date.parse(v)))
-      .transform((v) => new Date(v))
+      .transform((v) => (v === "" ? undefined : v))
+      .pipe(
+        z
+          .string()
+          .refine((v) => !isNaN(Date.parse(v)), "Date invalide")
+          .transform((v) => new Date(v)),
+      )
       .optional(),
   }),
 });
