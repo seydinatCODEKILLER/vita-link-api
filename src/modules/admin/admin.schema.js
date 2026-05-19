@@ -99,3 +99,11 @@ export const GetAuditLogsSchema = z.object({
       .transform((v) => (v ? parseInt(v) : 50)),
   }),
 });
+
+
+// ─── GET /admin/stats/monthly ────────────────────────────────
+export const GetMonthlyStatsSchema = z.object({
+  query: z.object({
+    year: z.string().optional().transform((v) => (v ? parseInt(v) : undefined)),
+  }),
+});

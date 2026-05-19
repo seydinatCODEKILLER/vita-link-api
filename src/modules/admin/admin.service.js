@@ -11,6 +11,21 @@ class AdminService {
     return adminRepository.getDashboardKpis();
   }
 
+  // ── GET /admin/stats/monthly ──────────────────────────────────
+  async getMonthlyStats(year) {
+    const currentYear = new Date().getFullYear();
+    const targetYear = year || currentYear;
+
+    // Sécurité : on ne peut pas demander l'année 2050
+    if (targetYear < 2020 || targetYear > currentYear) {
+      throw new BadRequestError(
+        `Année invalide. L'année doit être comprise entre 2020 et ${currentYear}.`,
+      );
+    }
+
+    return adminRepository.getMonthlyStats(targetYear);
+  }
+
   // ── GET /admin/users ─────────────────────────────────────────
   async getUsers(filters) {
     return adminRepository.findUsers(filters);

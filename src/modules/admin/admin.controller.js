@@ -108,6 +108,17 @@ class AdminController {
       next(err);
     }
   }
+
+    // GET /admin/stats/monthly
+  async getMonthlyStats(req, res, next) {
+    try {
+      const year = req.validated.query.year ? parseInt(req.validated.query.year) : new Date().getFullYear();
+      const data = await adminService.getMonthlyStats(year);
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export default new AdminController();

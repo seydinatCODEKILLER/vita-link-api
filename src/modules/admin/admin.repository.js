@@ -329,6 +329,105 @@ class AdminRepository {
       select: { id: true },
     });
   }
+
+  // ─── Statistiques Mensuelles ────────────────────────────────
+
+  async getMonthlyStats(year) {
+    // On utilise DATE_TRUNC de PostgreSQL pour grouper par mois
+    const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
+    const endDate = new Date(`${year}-12-31T23:59:59.999Z`);
+
+    // 1. Dons par mois
+    const donationsByMonth = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(DATE_TRUNC('month', "donatedAt"), 'Mon') AS month,
+        COUNT(*)::int AS donations
+      FROM donations
+      WHERE "donatedAt" >= ${startDate} AND "donatedAt" <= ${endDate} AND "isDone" = true
+      GROUP BY DATE_TRUNC('month', "donatedAt")
+      ORDER BY DATE_TRUNC('month', "donatedAt") ASC
+    `;
+
+    // 2. Alertes par mois
+    const alertsByMonth = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(DATE_TRUNC('month', "createdAt"), 'Mon') AS month,
+        COUNT(*)::int AS alerts
+      FROM alerts
+      WHERE "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
+      GROUP BY DATE_TRUNC('month', "createdAt")
+      ORDER BY DATE_TRUNC('month', "createdAt") ASC
+    `;
+
+    // 3. Vies sauvées par mois (depuis JambaarsProfile mis à jour lors des dons)
+    const livesByMonth = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(DATE_TRUNC('month', d."donatedAt"), 'Mon') AS month,
+        COALESCE(SUM(jp."livesSavedEstimate"), 0)::int AS "livesSaved"
+      FROM donations d
+      JOIN users u ON u.id = d."donorId"
+      JOIN jambars_profiles jp ON jp."userId" = u.id
+      WHERE d."donatedAt" >= ${startDate} AND d."donatedAt" <= ${endDate} AND d."isDone" = true
+      GROUP BY DATE_TRUNC('month', d."donatedAt")
+      ORDER BY DATE_TRUNC('month', d."donatedAt") ASC
+    `;
+
+    // 4. Fusionner les données dans un seul tableau structuré
+    const monthsOrder = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const localizedMonths = [
+      "Jan",
+      "Fév",
+      "Mar",
+      "Avr",
+      "Mai",
+      "Juin",
+      "Juil",
+      "Aoû",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Déc",
+    ];
+
+    const statsMap = {};
+
+    // Initialiser tous les mois de l'année à 0
+    monthsOrder.forEach((m, index) => {
+      statsMap[m] = {
+        month: localizedMonths[index],
+        donations: 0,
+        alerts: 0,
+        livesSaved: 0,
+      };
+    });
+
+    // Remplir avec les vraies données
+    donationsByMonth.forEach((row) => {
+      if (statsMap[row.month]) statsMap[row.month].donations = row.donations;
+    });
+    alertsByMonth.forEach((row) => {
+      if (statsMap[row.month]) statsMap[row.month].alerts = row.alerts;
+    });
+    livesByMonth.forEach((row) => {
+      if (statsMap[row.month])
+        statsMap[row.month].livesSaved = Number(row.livesSaved);
+    });
+
+    return Object.values(statsMap);
+  }
 }
 
 export default new AdminRepository();

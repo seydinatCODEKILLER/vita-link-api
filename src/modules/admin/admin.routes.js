@@ -13,6 +13,7 @@ import {
   VerifyStructureSchema,
   SuspendStructureSchema,
   GetAuditLogsSchema,
+  GetMonthlyStatsSchema,
 } from "./admin.schema.js";
 
 const router = Router();
@@ -54,6 +55,32 @@ router.get(
   "/dashboard",
   crudLimiter,
   adminController.getDashboard.bind(adminController),
+);
+
+/**
+ * @swagger
+ * /admin/stats/monthly:
+ *   get:
+ *     summary: Statistiques mensuelles (Tendances)
+ *     description: "Récupère le nombre de dons, d'alertes et l'estimation des vies sauvées par mois pour une année donnée."
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *           default: 2024
+ *     responses:
+ *       200:
+ *         description: Données mensuelles
+ */
+router.get(
+  "/stats/monthly",
+  crudLimiter,
+  validate(GetMonthlyStatsSchema),
+  adminController.getMonthlyStats.bind(adminController),
 );
 
 /**
