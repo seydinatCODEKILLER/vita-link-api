@@ -26,7 +26,7 @@ export const swaggerOptions = {
     {
       url: "https://vita-link-api.onrender.com/api",
       description: "Serveur de production",
-    }
+    },
   ],
 
   components: {
@@ -95,6 +95,7 @@ export const swaggerOptions = {
           "structureName",
           "registrationNumber",
           "address",
+          "region", // <-- AJOUT ICI : rendu obligatoire dans Swagger
         ],
         properties: {
           firstName: { type: "string", example: "Dr. Moussa" },
@@ -112,6 +113,28 @@ export const swaggerOptions = {
           },
           registrationNumber: { type: "string", example: "SN-MED-2024-001" },
           address: { type: "string", example: "Avenue Nelson Mandela, Dakar" },
+          // <-- AJOUT ICI : Définition de l'enum pour la région
+          region: {
+            type: "string",
+            description: "Région administrative du Sénégal",
+            enum: [
+              "Dakar",
+              "Diourbel",
+              "Fatick",
+              "Kaffrine",
+              "Kaolack",
+              "Kédougou",
+              "Kolda",
+              "Louga",
+              "Matam",
+              "Sédhiou",
+              "Saint-Louis",
+              "Tambacounda",
+              "Thiès",
+              "Ziguinchor",
+            ],
+            example: "Dakar",
+          },
           structurePhone: { type: "string", example: "+221338201234" },
           structureEmail: {
             type: "string",

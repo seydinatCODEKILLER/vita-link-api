@@ -1,8 +1,5 @@
 import { prisma } from "../../config/database.js";
 
-// Admin n'hérite PAS de BaseRepository
-// Il fait ses propres requêtes cross-tables pour les KPIs et agrégations
-
 class AdminRepository {
   // ─── Dashboard KPIs ────────────────────────────────────────
 
@@ -17,27 +14,10 @@ class AdminRepository {
       livesSaved,
       pendingStructures,
     ] = await Promise.all([
-      // Nombre total de donneurs actifs
-      prisma.user.count({
-        where: { role: "DONOR", isActive: true },
-      }),
-
-      // Nombre total de structures vérifiées
-      prisma.healthStructure.count({
-        where: { status: "VERIFIED" },
-      }),
-
-      // Nombre total de dons validés (= vies sauvées approximatives)
-      prisma.donation.count({
-        where: { isDone: true },
-      }),
-
-      // Nombre total d'alertes clôturées (quota atteint)
-      prisma.alert.count({
-        where: { status: "QUOTA_REACHED" },
-      }),
-
-      // Temps de réponse moyen national (en minutes)
+      prisma.user.count({ where: { role: "DONOR", isActive: true } }),
+      prisma.healthStructure.count({ where: { status: "VERIFIED" } }),
+      prisma.donation.count({ where: { isDone: true } }),
+      prisma.alert.count({ where: { status: "QUOTA_REACHED" } }),
       prisma.$queryRaw`
         SELECT ROUND(
           AVG(
@@ -48,23 +28,15 @@ class AdminRepository {
         JOIN alerts a ON a.id = ar."alertId"
         WHERE ar."arrivedAt" IS NOT NULL
       `,
-
-      // Structures avec stocks critiques
       prisma.bloodStock.groupBy({
         by: ["healthStructureId"],
         where: { level: "CRITICAL" },
         _count: { healthStructureId: true },
       }),
-
-      // Estimation vies sauvées (somme des livesSavedEstimate)
       prisma.jambaarsProfile.aggregate({
         _sum: { livesSavedEstimate: true },
       }),
-
-      // Structures en attente de validation
-      prisma.healthStructure.count({
-        where: { status: "PENDING_REVIEW" },
-      }),
+      prisma.healthStructure.count({ where: { status: "PENDING_REVIEW" } }),
     ]);
 
     return {
@@ -156,7 +128,7 @@ class AdminRepository {
           },
         },
         employerStructure: {
-          select: { id: true, name: true, status: true },
+          select: { id: true, name: true, status: true, region: true }, // <-- AJOUT region
         },
         _count: {
           select: { donations: true, alertResponses: true },
@@ -176,17 +148,15 @@ class AdminRepository {
         },
         select: { id: true, firstName: true, lastName: true, role: true },
       });
-
       await tx.auditLog.create({
         data: {
-          userId: adminId, // ✅ C'est maintenant l'ID de l'Admin
+          userId: adminId,
           action: "USER_SUSPENDED",
           entityType: "USER",
           entityId: targetId,
           details: reason ? JSON.stringify({ reason }) : null,
         },
       });
-
       return user;
     });
   }
@@ -198,16 +168,14 @@ class AdminRepository {
         data: { isActive: true },
         select: { id: true, firstName: true, lastName: true, role: true },
       });
-
       await tx.auditLog.create({
         data: {
-          userId: adminId, // ✅ C'est maintenant l'ID de l'Admin
+          userId: adminId,
           action: "USER_REACTIVATED",
           entityType: "USER",
           entityId: targetId,
         },
       });
-
       return user;
     });
   }
@@ -225,6 +193,7 @@ class AdminRepository {
           name: true,
           registrationNumber: true,
           address: true,
+          region: true, // <-- AJOUT region
           phone: true,
           email: true,
           isVerified: true,
@@ -247,14 +216,9 @@ class AdminRepository {
     return prisma.$transaction(async (tx) => {
       const structure = await tx.healthStructure.update({
         where: { id },
-        data: {
-          isVerified: true,
-          status: "VERIFIED",
-          verifiedAt: new Date(),
-        },
+        data: { isVerified: true, status: "VERIFIED", verifiedAt: new Date() },
         select: { id: true, name: true, status: true, verifiedAt: true },
       });
-
       await tx.auditLog.create({
         data: {
           userId: adminId,
@@ -263,7 +227,6 @@ class AdminRepository {
           entityId: id,
         },
       });
-
       return structure;
     });
   }
@@ -275,17 +238,15 @@ class AdminRepository {
         data: { status: "SUSPENDED", isVerified: false },
         select: { id: true, name: true, status: true },
       });
-
       await tx.auditLog.create({
         data: {
-          userId: adminId, // ✅ C'est maintenant l'ID de l'Admin
+          userId: adminId,
           action: "STRUCTURE_SUSPENDED",
           entityType: "HEALTH_STRUCTURE",
           entityId: id,
           details: reason ? JSON.stringify({ reason }) : null,
         },
       });
-
       return structure;
     });
   }
@@ -330,49 +291,61 @@ class AdminRepository {
     });
   }
 
+  // ─── Alertes Récentes ────────────────────────────────────────
+
+  async getRecentAlerts(limit = 10) {
+    const alerts = await prisma.alert.findMany({
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        bloodType: true,
+        createdAt: true,
+        healthStructure: {
+          select: {
+            name: true,
+            region: true, // Proprement récupéré depuis la BDD
+          },
+        },
+      },
+    });
+
+    return alerts.map((alert) => ({
+      id: alert.id,
+      structureName: alert.healthStructure.name,
+      region: alert.healthStructure.region || "Non spécifiée", // Plus de Regex !
+      bloodGroup: alert.bloodType.replace("_", ""),
+      status: alert.status,
+      createdAt: alert.createdAt,
+    }));
+  }
+
   // ─── Statistiques Mensuelles ────────────────────────────────
 
   async getMonthlyStats(year) {
-    // On utilise DATE_TRUNC de PostgreSQL pour grouper par mois
     const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
     const endDate = new Date(`${year}-12-31T23:59:59.999Z`);
 
-    // 1. Dons par mois
     const donationsByMonth = await prisma.$queryRaw`
-      SELECT 
-        TO_CHAR(DATE_TRUNC('month', "donatedAt"), 'Mon') AS month,
-        COUNT(*)::int AS donations
-      FROM donations
-      WHERE "donatedAt" >= ${startDate} AND "donatedAt" <= ${endDate} AND "isDone" = true
-      GROUP BY DATE_TRUNC('month', "donatedAt")
-      ORDER BY DATE_TRUNC('month', "donatedAt") ASC
+      SELECT TO_CHAR(DATE_TRUNC('month', "donatedAt"), 'Mon') AS month, COUNT(*)::int AS donations
+      FROM donations WHERE "donatedAt" >= ${startDate} AND "donatedAt" <= ${endDate} AND "isDone" = true
+      GROUP BY DATE_TRUNC('month', "donatedAt") ORDER BY DATE_TRUNC('month', "donatedAt") ASC
     `;
 
-    // 2. Alertes par mois
     const alertsByMonth = await prisma.$queryRaw`
-      SELECT 
-        TO_CHAR(DATE_TRUNC('month', "createdAt"), 'Mon') AS month,
-        COUNT(*)::int AS alerts
-      FROM alerts
-      WHERE "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
-      GROUP BY DATE_TRUNC('month', "createdAt")
-      ORDER BY DATE_TRUNC('month', "createdAt") ASC
+      SELECT TO_CHAR(DATE_TRUNC('month', "createdAt"), 'Mon') AS month, COUNT(*)::int AS alerts
+      FROM alerts WHERE "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
+      GROUP BY DATE_TRUNC('month', "createdAt") ORDER BY DATE_TRUNC('month', "createdAt") ASC
     `;
 
-    // 3. Vies sauvées par mois (depuis JambaarsProfile mis à jour lors des dons)
     const livesByMonth = await prisma.$queryRaw`
-      SELECT 
-        TO_CHAR(DATE_TRUNC('month', d."donatedAt"), 'Mon') AS month,
-        COALESCE(SUM(jp."livesSavedEstimate"), 0)::int AS "livesSaved"
-      FROM donations d
-      JOIN users u ON u.id = d."donorId"
-      JOIN jambars_profiles jp ON jp."userId" = u.id
+      SELECT TO_CHAR(DATE_TRUNC('month', d."donatedAt"), 'Mon') AS month, COALESCE(SUM(jp."livesSavedEstimate"), 0)::int AS "livesSaved"
+      FROM donations d JOIN users u ON u.id = d."donorId" JOIN jambars_profiles jp ON jp."userId" = u.id
       WHERE d."donatedAt" >= ${startDate} AND d."donatedAt" <= ${endDate} AND d."isDone" = true
-      GROUP BY DATE_TRUNC('month', d."donatedAt")
-      ORDER BY DATE_TRUNC('month', d."donatedAt") ASC
+      GROUP BY DATE_TRUNC('month', d."donatedAt") ORDER BY DATE_TRUNC('month', d."donatedAt") ASC
     `;
 
-    // 4. Fusionner les données dans un seul tableau structuré
     const monthsOrder = [
       "Jan",
       "Feb",
@@ -403,8 +376,6 @@ class AdminRepository {
     ];
 
     const statsMap = {};
-
-    // Initialiser tous les mois de l'année à 0
     monthsOrder.forEach((m, index) => {
       statsMap[m] = {
         month: localizedMonths[index],
@@ -414,7 +385,6 @@ class AdminRepository {
       };
     });
 
-    // Remplir avec les vraies données
     donationsByMonth.forEach((row) => {
       if (statsMap[row.month]) statsMap[row.month].donations = row.donations;
     });
@@ -429,72 +399,52 @@ class AdminRepository {
     return Object.values(statsMap);
   }
 
-    // ─── Heatmap par Région (Ville) ─────────────────────────────
+  // ─── Heatmap par Région ────────────────────────────────────
+  // ✅ PLUS AUCUNE REGEX ! Tout se base sur le champ region de HealthStructure
 
   async getRegionStats() {
-    // 1. Compter les donneurs actifs par ville
+    // 1. Compter les donneurs actifs par ville (depuis leur profil Jambaars)
     const donorsByCity = await prisma.jambaarsProfile.groupBy({
-      by: ['city'],
-      where: { 
-        city: { not: null },
-        user: { role: 'DONOR', isActive: true } 
-      },
+      by: ["city"],
+      where: { city: { not: null }, user: { role: "DONOR", isActive: true } },
       _count: { city: true },
     });
 
-    // 2. Calculer le niveau de demande (nombre d'alertes) par ville de structure
-    const alertsByCity = await prisma.alert.groupBy({
-      by: ['healthStructureId'],
-      _count: { id: true },
+    // 2. Compter les alertes par région (depuis la structure rattachée)
+    const alertsByRegion = await prisma.healthStructure.groupBy({
+      by: ["region"],
+      where: {
+        region: { not: null },
+        alerts: { some: {} }, // Inclut seulement les structures ayant des alertes
+      },
+      _count: {
+        alerts: true, // Compte directement le nombre d'alertes liées
+      },
     });
 
-    // Récupérer les villes des structures pour mapper les IDs
-    const structures = await prisma.healthStructure.findMany({
-      select: { id: true, address: true },
-    });
-
-    // 3. Mapper les alertes vers les villes
-    const alertsByCityMap = {};
-    const cityRegex = /Dakar|Thiès|Saint-Louis|Ziguinchor|Kaolack|Diourbel|Tambacounda|Louga|Fatick|Kolda|Matam|Sédhiou|Kédougou|Kaffrine/gi;
-
-    alertsByCity.forEach(alertGroup => {
-      const structure = structures.find(s => s.id === alertGroup.healthStructureId);
-      if (structure) {
-        // Extraction basique de la ville depuis l'adresse (ex: "Avenue X, Dakar")
-        const match = structure.address.match(cityRegex);
-        const city = match ? match[0] : 'Autre';
-        
-        if (!alertsByCityMap[city]) alertsByCityMap[city] = 0;
-        alertsByCityMap[city] += alertGroup._count.id;
-      }
-    });
-
-    // 4. Fusionner les données et calculer le demandLevel (0-100)
-    const allCities = new Set([
-      ...donorsByCity.map(d => d.city),
-      ...Object.keys(alertsByCityMap)
+    // 3. Fusionner les données
+    const allRegions = new Set([
+      ...donorsByCity.map((d) => d.city),
+      ...alertsByRegion.map((a) => a.region).filter(Boolean),
     ]);
 
-    // Trouver le max d'alertes pour normaliser le niveau de demande (0-100)
-    const maxAlerts = Math.max(...Object.values(alertsByCityMap), 1);
+    const maxAlerts = Math.max(
+      ...alertsByRegion.map((a) => a._count.alerts),
+      1,
+    );
 
-    const data = Array.from(allCities).map(city => {
-      const donorData = donorsByCity.find(d => d.city === city);
+    const data = Array.from(allRegions).map((region) => {
+      const donorData = donorsByCity.find((d) => d.city === region);
+      const alertData = alertsByRegion.find((a) => a.region === region);
+
       const donorsCount = donorData?._count.city || 0;
-      const demandCount = alertsByCityMap[city] || 0;
+      const demandCount = alertData?._count.alerts || 0;
 
-      // Le demandLevel est un pourcentage (0 à 100) basé sur le nombre d'alertes
-      // par rapport à la zone la plus active
       const demandLevel = Math.round((demandCount / maxAlerts) * 100);
 
-      return {
-        region: city,
-        demandLevel,
-        donorsCount,
-      };
+      return { region, demandLevel, donorsCount };
     });
 
-    // Trier par niveau de demande décroissant (les zones les plus chaudes en premier)
     return data.sort((a, b) => b.demandLevel - a.demandLevel);
   }
 }

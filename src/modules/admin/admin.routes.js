@@ -15,6 +15,7 @@ import {
   GetAuditLogsSchema,
   GetMonthlyStatsSchema,
   GetRegionStatsSchema,
+  GetRecentAlertsSchema,
 } from "./admin.schema.js";
 
 const router = Router();
@@ -115,7 +116,7 @@ router.get(
   "/stats/regions",
   crudLimiter,
   validate(GetRegionStatsSchema),
-  adminController.getRegionStats.bind(adminController)
+  adminController.getRegionStats.bind(adminController),
 );
 
 /**
@@ -189,6 +190,34 @@ router.get(
   crudLimiter,
   validate(GetUsersSchema),
   adminController.getUsers.bind(adminController),
+);
+
+/**
+ * @swagger
+ * /admin/alerts/recent:
+ *   get:
+ *     summary: Alertes les plus récentes
+ *     description: "Récupère les dernières alertes créées sur la plateforme avec le nom de la structure et la région."
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: Liste des alertes récentes
+ */
+router.get(
+  "/alerts/recent",
+  crudLimiter,
+  validate(GetRecentAlertsSchema),
+  adminController.getRecentAlerts.bind(adminController),
 );
 
 /**

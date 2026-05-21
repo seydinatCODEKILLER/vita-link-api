@@ -26,6 +26,23 @@ const bloodTypeValues = [
   "O_NEG",
 ];
 
+const SENEGAL_REGIONS = [
+  "Dakar",
+  "Diourbel",
+  "Fatick",
+  "Kaffrine",
+  "Kaolack",
+  "Kédougou",
+  "Kolda",
+  "Louga",
+  "Matam",
+  "Sédhiou",
+  "Saint-Louis",
+  "Tambacounda",
+  "Thiès",
+  "Ziguinchor",
+];
+
 // ─── POST /auth/register/donor ────────────────────────────────
 export const RegisterDonorSchema = z.object({
   body: z.object({
@@ -50,13 +67,11 @@ export const RegisterDonorSchema = z.object({
 // ─── POST /auth/register/health-structure ────────────────────
 export const RegisterHealthStructureSchema = z.object({
   body: z.object({
-    // Directeur
     firstName: z.string().trim().min(2).max(50),
     lastName: z.string().trim().min(2).max(50),
     email: z.string().trim().email("Email invalide"),
     phone: phoneSchema,
     password: passwordSchema,
-    // Structure
     structureName: z
       .string()
       .trim()
@@ -67,6 +82,9 @@ export const RegisterHealthStructureSchema = z.object({
       .trim()
       .min(3, "Numéro d'enregistrement invalide"),
     address: z.string().trim().min(5, "Adresse trop courte"),
+    region: z.enum(SENEGAL_REGIONS, {
+      errorMap: () => ({ message: "Veuillez sélectionner une région valide parmi les 14 régions" }),
+    }),
     structurePhone: phoneSchema.optional(),
     structureEmail: z.string().trim().email().optional(),
     latitude: z.number().min(-90).max(90).optional(),

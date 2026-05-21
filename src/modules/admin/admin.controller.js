@@ -109,10 +109,12 @@ class AdminController {
     }
   }
 
-    // GET /admin/stats/monthly
+  // GET /admin/stats/monthly
   async getMonthlyStats(req, res, next) {
     try {
-      const year = req.validated.query.year ? parseInt(req.validated.query.year) : new Date().getFullYear();
+      const year = req.validated.query.year
+        ? parseInt(req.validated.query.year)
+        : new Date().getFullYear();
       const data = await adminService.getMonthlyStats(year);
       res.status(200).json({ success: true, data });
     } catch (err) {
@@ -120,11 +122,22 @@ class AdminController {
     }
   }
 
-    // GET /admin/stats/regions
+  // GET /admin/stats/regions
   async getRegionStats(req, res, next) {
     try {
       const data = await adminService.getRegionStats();
       res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // GET /admin/alerts/recent  <-- AJOUT
+  async getRecentAlerts(req, res, next) {
+    try {
+      const limit = req.validated.query.limit || 10;
+      const alerts = await adminService.getRecentAlerts(limit);
+      res.status(200).json({ success: true, alerts });
     } catch (err) {
       next(err);
     }

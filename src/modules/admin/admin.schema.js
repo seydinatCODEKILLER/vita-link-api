@@ -1,5 +1,22 @@
-// admin/admin.schema.js
 import { z } from "zod";
+
+// Les 14 régions administratives du Sénégal
+const SENEGAL_REGIONS = [
+  "Dakar",
+  "Diourbel",
+  "Fatick",
+  "Kaffrine",
+  "Kaolack",
+  "Kédougou",
+  "Kolda",
+  "Louga",
+  "Matam",
+  "Sédhiou",
+  "Saint-Louis",
+  "Tambacounda",
+  "Thiès",
+  "Ziguinchor",
+];
 
 // ─── Params partagés ─────────────────────────────────────────
 const uuidParam = z.string().uuid("ID invalide");
@@ -58,6 +75,9 @@ export const ReactivateUserSchema = z.object({
 export const GetStructuresSchema = z.object({
   query: z.object({
     status: z.enum(["PENDING_REVIEW", "VERIFIED", "SUSPENDED"]).optional(),
+    region: z.enum(SENEGAL_REGIONS, { // <-- AJOUT : Filtrer par région
+      errorMap: () => ({ message: "Région invalide" }),
+    }).optional(),
     page: z
       .string()
       .optional()
@@ -100,7 +120,6 @@ export const GetAuditLogsSchema = z.object({
   }),
 });
 
-
 // ─── GET /admin/stats/monthly ────────────────────────────────
 export const GetMonthlyStatsSchema = z.object({
   query: z.object({
@@ -110,5 +129,12 @@ export const GetMonthlyStatsSchema = z.object({
 
 // ─── GET /admin/stats/regions ────────────────────────────────
 export const GetRegionStatsSchema = z.object({
-  query: z.object({}).optional(), // Pas de filtres pour l'instant
+  query: z.object({}).optional(),
+});
+
+// ─── GET /admin/alerts/recent ────────────────────────────────
+export const GetRecentAlertsSchema = z.object({
+  query: z.object({
+    limit: z.coerce.number().int().min(1).max(50).default(10).optional(),
+  }),
 });

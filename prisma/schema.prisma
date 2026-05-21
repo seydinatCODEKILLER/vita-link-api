@@ -204,6 +204,7 @@ model HealthStructure {
   name               String
   registrationNumber String                @unique
   address            String
+  region             String?
   latitude           Float?
   longitude          Float?
   phone              String?

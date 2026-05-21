@@ -16,7 +16,6 @@ class AdminService {
     const currentYear = new Date().getFullYear();
     const targetYear = year || currentYear;
 
-    // Sécurité : on ne peut pas demander l'année 2050
     if (targetYear < 2020 || targetYear > currentYear) {
       throw new BadRequestError(
         `Année invalide. L'année doit être comprise entre 2020 et ${currentYear}.`,
@@ -26,9 +25,14 @@ class AdminService {
     return adminRepository.getMonthlyStats(targetYear);
   }
 
-    // ── GET /admin/stats/regions ──────────────────────────────────
+  // ── GET /admin/stats/regions ──────────────────────────────────
   async getRegionStats() {
     return adminRepository.getRegionStats();
+  }
+
+  // ── GET /admin/alerts/recent ──────────────────────────────── <-- AJOUT
+  async getRecentAlerts(limit) {
+    return adminRepository.getRecentAlerts(limit);
   }
 
   // ── GET /admin/users ─────────────────────────────────────────
@@ -50,7 +54,6 @@ class AdminService {
     if (!user.isActive)
       throw new BadRequestError("Cet utilisateur est déjà suspendu");
 
-    // ✅ On passe adminId
     const updated = await adminRepository.suspendUser(
       targetId,
       adminId,
@@ -68,7 +71,6 @@ class AdminService {
     if (user.isActive)
       throw new BadRequestError("Cet utilisateur est déjà actif");
 
-    // ✅ On passe adminId
     const updated = await adminRepository.reactivateUser(targetId, adminId);
 
     logger.logEvent("ADMIN_USER_REACTIVATED", { targetId, adminId });
@@ -85,7 +87,6 @@ class AdminService {
     const existing = await adminRepository.findStructureById(id);
     if (!existing) throw new NotFoundError("Structure introuvable");
 
-    // ✅ On passe adminId
     const updated = await adminRepository.verifyStructure(id, adminId);
 
     logger.logEvent("STRUCTURE_VERIFIED", { structureId: id, adminId });
@@ -97,7 +98,6 @@ class AdminService {
     const existing = await adminRepository.findStructureById(id);
     if (!existing) throw new NotFoundError("Structure introuvable");
 
-    // ✅ On passe adminId
     const updated = await adminRepository.suspendStructure(id, adminId, reason);
 
     logger.logEvent("STRUCTURE_SUSPENDED", {

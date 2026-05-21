@@ -97,6 +97,7 @@ router.post(
  *                   properties:
  *                     id: { type: string, example: "d9b9c..." }
  *                     name: { type: string, example: "Hôpital Principal de Dakar" }
+ *                     region: { type: string, example: "Dakar" } # <-- AJOUT ICI
  *                     status: { type: string, example: "PENDING_REVIEW" }
  *       409:
  *         description: Conflit - Email, téléphone ou numéro d'enregistrement déjà utilisé

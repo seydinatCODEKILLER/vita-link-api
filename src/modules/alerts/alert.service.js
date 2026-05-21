@@ -5,6 +5,7 @@ import {
   emitToAlert,
   emitToStructure,
   emitToDonors,
+  emitToUser,
 } from "../../config/socket.js";
 import logger from "../../config/logger.js";
 import {
@@ -89,17 +90,19 @@ class AlertService {
     });
 
     // 3. Notifier en temps réel via Socket.io (donneurs connectés)
-    emitToDonors("alert:new", {
-      alertId: alert.id,
-      bloodType: alert.bloodType,
-      urgencyLevel: alert.urgencyLevel,
-      serviceUnit: alert.serviceUnit,
-      structureName: alert.healthStructure.name,
-      address: alert.address,
-      latitude: alert.latitude,
-      longitude: alert.longitude,
-      quantityNeeded: alert.quantityNeeded,
-      expiresAt: alert.expiresAt,
+    nearbyDonors.forEach(donor => {
+      emitToUser(donor.id, "alert:new", {
+        alertId: alert.id,
+        bloodType: alert.bloodType,
+        urgencyLevel: alert.urgencyLevel,
+        serviceUnit: alert.serviceUnit,
+        structureName: alert.healthStructure.name,
+        address: alert.address,
+        latitude: alert.latitude,
+        longitude: alert.longitude,
+        quantityNeeded: alert.quantityNeeded,
+        expiresAt: alert.expiresAt,
+      });
     });
 
     // 4. Multicast push Expo aux donneurs hors-ligne avec token valide
