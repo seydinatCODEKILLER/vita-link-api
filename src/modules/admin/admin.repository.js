@@ -182,8 +182,11 @@ class AdminRepository {
 
   // ─── Health Structures ─────────────────────────────────────
 
-  findStructures({ status, page, limit }) {
-    const where = { ...(status && { status }) };
+  findStructures({ status,region, page, limit }) {
+      const where = { 
+    ...(status && { status }),
+    ...(region && { region })
+  };
 
     return Promise.all([
       prisma.healthStructure.findMany({
@@ -193,7 +196,7 @@ class AdminRepository {
           name: true,
           registrationNumber: true,
           address: true,
-          region: true, // <-- AJOUT region
+          region: true,
           phone: true,
           email: true,
           isVerified: true,
@@ -400,7 +403,6 @@ class AdminRepository {
   }
 
   // ─── Heatmap par Région ────────────────────────────────────
-  // ✅ PLUS AUCUNE REGEX ! Tout se base sur le champ region de HealthStructure
 
   async getRegionStats() {
     // 1. Compter les donneurs actifs par ville (depuis leur profil Jambaars)
@@ -410,35 +412,50 @@ class AdminRepository {
       _count: { city: true },
     });
 
-    // 2. Compter les alertes par région (depuis la structure rattachée)
-    const alertsByRegion = await prisma.healthStructure.groupBy({
-      by: ["region"],
-      where: {
-        region: { not: null },
-        alerts: { some: {} }, // Inclut seulement les structures ayant des alertes
-      },
-      _count: {
-        alerts: true, // Compte directement le nombre d'alertes liées
-      },
+    // 2. Compter les alertes par structure
+    // (On groupe sur la table Alert, ce qui est autorisé par Prisma)
+    const alertsByStructure = await prisma.alert.groupBy({
+      by: ["healthStructureId"],
+      _count: { id: true }, // Compte le nombre d'alertes par structure
     });
 
-    // 3. Fusionner les données
+    // 3. Récupérer les régions des structures qui ont des alertes
+    const structureIds = alertsByStructure.map((a) => a.healthStructureId);
+
+    const structures = await prisma.healthStructure.findMany({
+      where: {
+        id: { in: structureIds },
+        region: { not: null }, // On ignore les structures sans région renseignée
+      },
+      select: { id: true, region: true },
+    });
+
+    // 4. Agréger le nombre d'alertes par région
+    const alertsByRegionMap = {};
+
+    alertsByStructure.forEach((alertGroup) => {
+      const structure = structures.find(
+        (s) => s.id === alertGroup.healthStructureId,
+      );
+      if (structure && structure.region) {
+        const region = structure.region;
+        if (!alertsByRegionMap[region]) alertsByRegionMap[region] = 0;
+        alertsByRegionMap[region] += alertGroup._count.id;
+      }
+    });
+
+    // 5. Fusionner les données
     const allRegions = new Set([
       ...donorsByCity.map((d) => d.city),
-      ...alertsByRegion.map((a) => a.region).filter(Boolean),
+      ...Object.keys(alertsByRegionMap),
     ]);
 
-    const maxAlerts = Math.max(
-      ...alertsByRegion.map((a) => a._count.alerts),
-      1,
-    );
+    const maxAlerts = Math.max(...Object.values(alertsByRegionMap), 1);
 
     const data = Array.from(allRegions).map((region) => {
       const donorData = donorsByCity.find((d) => d.city === region);
-      const alertData = alertsByRegion.find((a) => a.region === region);
-
       const donorsCount = donorData?._count.city || 0;
-      const demandCount = alertData?._count.alerts || 0;
+      const demandCount = alertsByRegionMap[region] || 0;
 
       const demandLevel = Math.round((demandCount / maxAlerts) * 100);
 

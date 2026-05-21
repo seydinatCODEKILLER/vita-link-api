@@ -143,37 +143,35 @@ class AuthRepository extends BaseRepository {
    * Crée la structure de santé + le directeur en une transaction atomique.
    * Le directeur est lié à la structure et marqué isStructureAdmin = true.
    */
-  async createHealthStructureWithDirector({
-    // Directeur
-    firstName,
-    lastName,
-    email,
-    phone,
-    passwordHash,
-    // Structure
-    structureName,
-    registrationNumber,
-    address,
-    structurePhone,
-    structureEmail,
-    latitude,
-    longitude,
-  }) {
+  async createHealthStructureWithDirector(data) {
     return prisma.$transaction(async (tx) => {
+      // 1. Création de la structure
+      // On prend tout dans data SAUF ce qui concerne le directeur
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        passwordHash,
+        ...structureData
+      } = data;
+
       const structure = await tx.healthStructure.create({
         data: {
-          name: structureName,
-          registrationNumber,
-          address,
-          phone: structurePhone,
-          email: structureEmail,
-          latitude,
-          longitude,
+          name: structureData.structureName,
+          registrationNumber: structureData.registrationNumber,
+          address: structureData.address,
+          region: structureData.region, // <-- ✅ La région est bien récupérée maintenant !
+          phone: structureData.structurePhone,
+          email: structureData.structureEmail,
+          latitude: structureData.latitude,
+          longitude: structureData.longitude,
           status: "PENDING_REVIEW",
           isVerified: false,
         },
       });
 
+      // 2. Création du directeur
       const director = await tx.user.create({
         data: {
           firstName,

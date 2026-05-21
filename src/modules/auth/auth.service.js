@@ -121,6 +121,7 @@ class AuthService {
 
     const passwordHash = await hashPassword(data.password);
 
+    // ✅ On passe directement data et passwordHash
     const { structure, director } =
       await authRepository.createHealthStructureWithDirector({
         ...data,
@@ -140,6 +141,7 @@ class AuthService {
       structure: {
         id: structure.id,
         name: structure.name,
+        region: structure.region,
         status: structure.status,
       },
     };

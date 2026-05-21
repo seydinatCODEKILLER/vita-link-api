@@ -315,7 +315,7 @@ router.patch(
  * /admin/health-structures:
  *   get:
  *     summary: Liste des structures (avec filtres)
- *     description: "Permet de filtrer particulièrement les structures en attente de validation (PENDING_REVIEW)."
+ *     description: "Permet de filtrer les structures par statut ou par région administrative."
  *     tags: [Admin]
  *     security:
  *       - BearerAuth: []
@@ -325,6 +325,26 @@ router.patch(
  *         schema:
  *           type: string
  *           enum: [PENDING_REVIEW, VERIFIED, SUSPENDED]
+ *       - in: query
+ *         name: region
+ *         schema:
+ *           type: string
+ *           description: "Filtrer par région administrative du Sénégal"
+ *           enum:
+ *             - Dakar
+ *             - Diourbel
+ *             - Fatick
+ *             - Kaffrine
+ *             - Kaolack
+ *             - Kédougou
+ *             - Kolda
+ *             - Louga
+ *             - Matam
+ *             - Sédhiou
+ *             - Saint-Louis
+ *             - Tambacounda
+ *             - Thiès
+ *             - Ziguinchor
  *       - in: query
  *         name: page
  *         schema:
