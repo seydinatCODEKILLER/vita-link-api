@@ -4,6 +4,7 @@ import {
   NotFoundError,
   BadRequestError,
 } from "../../shared/errors/AppError.js";
+import { emitToStructure } from "../../config/socket.js";
 
 class AdminService {
   // ── GET /admin/dashboard ─────────────────────────────────────
@@ -88,6 +89,11 @@ class AdminService {
     if (!existing) throw new NotFoundError("Structure introuvable");
 
     const updated = await adminRepository.verifyStructure(id, adminId);
+    emitToStructure(id, "structure:verified", {
+      structureId: id,
+      status: "VERIFIED",
+      verifiedAt: updated.verifiedAt,
+    });
 
     logger.logEvent("STRUCTURE_VERIFIED", { structureId: id, adminId });
     return updated;
