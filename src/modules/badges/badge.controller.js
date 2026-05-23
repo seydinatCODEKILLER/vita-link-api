@@ -43,6 +43,20 @@ class BadgeController {
       next(err);
     }
   }
+
+  // PATCH /badges/:id/reactivate
+  async reactivateBadge(req, res, next) {
+    try {
+      const badge = await badgeService.reactivateBadge(req.validated.params.id);
+
+      res.status(200).json({
+        success: true,
+        badge,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export default new BadgeController();

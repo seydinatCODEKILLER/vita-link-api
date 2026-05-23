@@ -8,6 +8,7 @@ import {
   CreateBadgeSchema,
   UpdateBadgeSchema,
   DeactivateBadgeSchema,
+  ReactivateBadgeSchema,
 } from "./badge.schema.js";
 
 const router = Router();
@@ -165,6 +166,65 @@ router.delete(
   crudLimiter,
   validate(DeactivateBadgeSchema),
   badgeController.deactivateBadge.bind(badgeController),
+);
+
+/**
+ * @swagger
+ * /badges/{id}/reactivate:
+ *   patch:
+ *     summary: Réactiver un badge désactivé
+ *     description: |
+ *       Réactive un badge précédemment désactivé en remettant
+ *       le champ `isActive` à `true`.
+ *
+ *       Une fois réactivé :
+ *       - le badge redevient visible dans le système
+ *       - les utilisateurs pourront à nouveau le débloquer
+ *       - les anciens détenteurs conservent leur badge
+ *     tags: [Badges]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID du badge à réactiver
+ *     responses:
+ *       200:
+ *         description: Badge réactivé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 badge:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     name:
+ *                       type: string
+ *                       example: Guerrier
+ *                     isActive:
+ *                       type: boolean
+ *                       example: true
+ *       404:
+ *         description: Badge introuvable
+ *       409:
+ *         description: Le badge est déjà actif
+ */
+router.patch(
+  "/:id/reactivate",
+  crudLimiter,
+  validate(ReactivateBadgeSchema),
+  badgeController.reactivateBadge.bind(badgeController),
 );
 
 export default router;

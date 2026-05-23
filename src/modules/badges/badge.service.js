@@ -54,6 +54,28 @@ class BadgeService {
 
     return badge;
   }
+
+  // ── PATCH /badges/:id/reactivate ─────────────────────────────
+  async reactivateBadge(id) {
+    const existing = await badgeRepository.findById(id);
+
+    if (!existing) {
+      throw new NotFoundError("Badge");
+    }
+
+    if (existing.isActive) {
+      throw new ConflictError("Ce badge est déjà actif");
+    }
+
+    const badge = await badgeRepository.reactivate(id);
+
+    logger.logEvent("BADGE_REACTIVATED", {
+      badgeId: badge.id,
+      name: badge.name,
+    });
+
+    return badge;
+  }
 }
 
 export default new BadgeService();

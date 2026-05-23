@@ -60,3 +60,8 @@ export const UpdateBadgeSchema = z.object({
 export const DeactivateBadgeSchema = z.object({
   params: uuidParam,
 });
+
+// ─── PATCH /badges/:id/reactivate ────────────────────────────
+export const ReactivateBadgeSchema = z.object({
+  params: uuidParam,
+});

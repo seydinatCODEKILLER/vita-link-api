@@ -225,6 +225,23 @@ class AuthRepository extends BaseRepository {
       where: { registrationNumber },
     });
   }
+
+  /**
+   * ✅ NOUVEAU : Récupère un utilisateur avec son rôle via son email.
+   * Utilisé pour vérifier l'existence et le rôle avant d'envoyer un OTP de reconnexion.
+   */
+  findByEmailWithRole(email) {
+    return this.model.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+        firstName: true,
+      },
+    });
+  }
 }
 
 export default new AuthRepository();

@@ -149,8 +149,33 @@ class AuthService {
 
   // ── 3. Envoi OTP standalone (re-send) ───────────────────────
   async sendOtp({ email }) {
-    // Vérifier que l'email est connu (donneur existant ou en cours d'inscription)
-    // En hackathon on envoie sans vérification stricte pour le re-send
+    // 1. Chercher l'utilisateur par email
+    const existingUser = await authRepository.findByEmailWithRole(email);
+
+    // 2. Si l'utilisateur n'existe pas, on lève une erreur
+    if (!existingUser) {
+      throw new NotFoundError(
+        "Aucun compte trouvé pour cet email. Veuillez vous inscrire d'abord.",
+      );
+    }
+
+    // 3. Si l'utilisateur existe mais n'a PAS le rôle DONNEUR, on lève une erreur
+    // (Les structures de santé se connectent via mot de passe, pas via OTP)
+    if (existingUser.role !== "DONOR") {
+      throw new ForbiddenError(
+        "Les comptes structures de santé ne peuvent pas se connecter via code OTP. Veuillez utiliser la connexion avec mot de passe.",
+      );
+    }
+
+    // 4. Sécurité supplémentaire : si le compte est suspendu
+    if (!existingUser.isActive) {
+      throw new ForbiddenError(
+        "Votre compte a été suspendu. Contactez le support.",
+      );
+    }
+
+    // ── Si on arrive ici, c'est un donneur actif → On envoie l'OTP ──
+
     await authRepository.invalidatePreviousOtps(email);
 
     const code = generateOtpCode();
@@ -158,15 +183,16 @@ class AuthService {
 
     await authRepository.createOtp({ email, code, expiresAt: expiry });
 
+    // ✅ AMÉLIORATION : On utilise le vrai prénom du donneur dans l'email
     await sendEmail({
       to: email,
-      subject: "🩸 Vita-Link — Votre code de vérification",
-      html: otpEmailHtml("Jambaar", code),
+      subject: "🩸 Vita-Link — Votre code de connexion sécurisé",
+      html: otpEmailHtml(existingUser.firstName || "Jambaar", code),
     });
 
-    logger.logEvent("OTP_SENT", { email, context: "resend" });
+    logger.logEvent("OTP_SENT", { email, context: "reconnect_donor" });
 
-    return { message: "Code de vérification renvoyé." };
+    return { message: "Code de vérification envoyé à votre adresse email." };
   }
 
   // ── 4. Vérification OTP → Upsert User → JWT ─────────────────

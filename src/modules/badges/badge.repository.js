@@ -64,6 +64,15 @@ class BadgeRepository extends BaseRepository {
       select: { id: true, name: true, isActive: true },
     });
   }
+
+  // Réactivation — on repasse isActive à true
+  reactivate(id) {
+    return this.model.update({
+      where: { id },
+      data: { isActive: true },
+      select: { id: true, name: true, isActive: true },
+    });
+  }
 }
 
 export default new BadgeRepository();
