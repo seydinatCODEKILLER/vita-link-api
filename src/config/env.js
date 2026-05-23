@@ -3,7 +3,12 @@ import "dotenv/config";
 const isProd = process.env.NODE_ENV === "production";
 
 // ─── Validation au démarrage ──────────────────────────────────
-const REQUIRED_ALWAYS = ["DATABASE_URL", "JWT_SECRET", "JWT_REFRESH_SECRET", "DIRECT_URL"];
+const REQUIRED_ALWAYS = [
+  "DATABASE_URL",
+  "JWT_SECRET",
+  "JWT_REFRESH_SECRET",
+  "DIRECT_URL",
+];
 
 const REQUIRED_IN_PROD = [
   "CLOUDINARY_CLOUD_NAME",
@@ -69,10 +74,13 @@ export const env = {
   // ─── CORS ─────────────────────────────────────────────────
   WEB_URL: process.env.WEB_URL || "",
   WEB_URL_DEV: process.env.WEB_URL_DEV || "http://localhost:3001",
+  WEB_URL_DEV_2: process.env.WEB_URL_DEV_2 || "http://localhost:3000",
   SWAGGER_URL: process.env.SWAGGER_URL,
 
   // ─── Sécurité ─────────────────────────────────────────────
-  DUMMY_HASH: process.env.DUMMY_HASH || "$2b$10$abcdefghijklmnopqrstuuVVmqJZOdEJ.JkpjBnBnNmS6RsOi8jCy",
+  DUMMY_HASH:
+    process.env.DUMMY_HASH ||
+    "$2b$10$abcdefghijklmnopqrstuuVVmqJZOdEJ.JkpjBnBnNmS6RsOi8jCy",
 
   // ─── Logs ─────────────────────────────────────────────────
   LOG_LEVEL: process.env.LOG_LEVEL || (isProd ? "info" : "debug"),
