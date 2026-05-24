@@ -52,7 +52,7 @@ export const RegisterDonorSchema = z.object({
     email: z.string().trim().email("Email invalide").optional(),
     bloodType: z.enum(bloodTypeValues, {
       errorMap: () => ({ message: "Groupe sanguin invalide" }),
-    }),
+    }).optional(),
     gender: z.enum(["MALE", "FEMALE"], {
       errorMap: () => ({ message: "Genre invalide" }),
     }),
