@@ -48,6 +48,8 @@ import rewardRouter from "./modules/rewards/reward.routes.js";
 import couponRouter from "./modules/coupons/coupon.routes.js";
 import bloodStockRouter from "./modules/blood-stocks/bloodStock.routes.js";
 import notificationRouter from "./modules/notifications/notification.routes.js";
+import donationDaysRouter from "./modules/donationDays/donationDays.routes.js";
+
 
 // ─── Routes ───────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
@@ -64,6 +66,8 @@ app.use("/api/rewards", rewardRouter);
 app.use("/api/coupons", couponRouter);
 app.use("/api/blood-stocks", bloodStockRouter);
 app.use("/api/notifications", notificationRouter);
+app.use("/api/donation-days", donationDaysRouter);
+
 
 // ─── Health check ─────────────────────────────────────────────
 app.get("/health", (_req, res) => {

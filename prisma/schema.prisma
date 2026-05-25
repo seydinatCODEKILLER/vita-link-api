@@ -9,8 +9,8 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -125,6 +125,20 @@ enum BloodStockLevel {
   SURPLUS
 }
 
+enum DonationDayStatus {
+  DRAFT // Créée mais pas encore publiée
+  PUBLISHED // Visible par les donneurs
+  CANCELLED // Annulée
+  COMPLETED // Terminée
+}
+
+enum RegistrationStatus {
+  REGISTERED // Inscrit
+  ATTENDED // Est venu
+  NO_SHOW // Ne s'est pas présenté
+  CANCELLED // A annulé son inscription
+}
+
 // ============================================================
 //  OTP CODES
 // ============================================================
@@ -161,36 +175,38 @@ model User {
   avatarUrl String?
 
   // Champs donneurs
-  bloodType   BloodType?
-  dateOfBirth DateTime?
-  isAvailable Boolean    @default(true)
-  expoPushToken  String?
-  ussdNumber  String?
+  bloodType     BloodType?
+  dateOfBirth   DateTime?
+  isAvailable   Boolean    @default(true)
+  expoPushToken String?
+  ussdNumber    String?
 
   // JWT refresh token
   refreshToken          String?   @unique
   refreshTokenExpiresAt DateTime?
 
   // Lien structure de santé
-  healthStructureId String?  @db.Uuid
-  isStructureAdmin  Boolean  @default(false)
+  healthStructureId String? @db.Uuid
+  isStructureAdmin  Boolean @default(false)
 
   // Localisation
   latitude  Float?
   longitude Float?
 
   // Relations
-  jambaarsProfile    JambaarsProfile?
-  employerStructure  HealthStructure? @relation("StructureStaff", fields: [healthStructureId], references: [id])
-  alertResponses     AlertResponse[]
-  createdAlerts      Alert[]          @relation("AlertCreator")
-  donations          Donation[]       @relation("DonorDonations")
-  validatedDonations Donation[]       @relation("ValidatorDonations")
-  userBadges         UserBadge[]
-  coupons            Coupon[]
-  notifications      Notification[]
-  auditLogs          AuditLog[]
-  managedPartners    Partner[]
+  jambaarsProfile          JambaarsProfile?
+  employerStructure        HealthStructure?          @relation("StructureStaff", fields: [healthStructureId], references: [id])
+  alertResponses           AlertResponse[]
+  createdAlerts            Alert[]                   @relation("AlertCreator")
+  donations                Donation[]                @relation("DonorDonations")
+  validatedDonations       Donation[]                @relation("ValidatorDonations")
+  userBadges               UserBadge[]
+  coupons                  Coupon[]
+  notifications            Notification[]
+  auditLogs                AuditLog[]
+  managedPartners          Partner[]
+  createdDonationDays      DonationDay[]             @relation("DonationDayCreator")
+  donationDayRegistrations DonationDayRegistration[]
 
   @@map("users")
 }
@@ -216,10 +232,11 @@ model HealthStructure {
   updatedAt          DateTime              @updatedAt
 
   // Relations
-  staffMembers User[]       @relation("StructureStaff")
+  staffMembers User[]        @relation("StructureStaff")
   alerts       Alert[]
   bloodStocks  BloodStock[]
   donations    Donation[]
+  donationDays DonationDay[]
 
   @@map("health_structures")
 }
@@ -466,7 +483,7 @@ model Notification {
   status    NotificationStatus  @default(PENDING)
   sentAt    DateTime?
   createdAt DateTime            @default(now())
-  isRead    Boolean  @default(false)
+  isRead    Boolean             @default(false)
 
   // Relations
   user  User   @relation(fields: [userId], references: [id])
@@ -495,4 +512,76 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// ============================================================
+//  JOURNÉE DE DON (Collecte planifiée)
+// ============================================================
+
+model DonationDay {
+  id                String @id @default(uuid()) @db.Uuid
+  healthStructureId String @db.Uuid
+  createdByUserId   String @db.Uuid
+
+  title       String // "Journée de don du 14 février"
+  description String? // Détails, contexte
+  photoUrl    String? // 🖼️ Photo de couverture de l'événement
+
+  // Lieu (peut différer du siège de la structure)
+  address   String
+  latitude  Float?
+  longitude Float?
+
+  // Planning
+  scheduledDate DateTime // Date de la journée
+  startTime     String // "08:00"
+  endTime       String // "17:00"
+
+  // Objectifs
+  targetDonors     Int      @default(50) // Nb de donneurs visés
+  bloodTypesNeeded String[] // ["O_NEG", "A_POS"] — flexible
+
+  // Statut
+  status       DonationDayStatus @default(DRAFT)
+  publishedAt  DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  healthStructure HealthStructure           @relation(fields: [healthStructureId], references: [id])
+  createdBy       User                      @relation("DonationDayCreator", fields: [createdByUserId], references: [id])
+  registrations   DonationDayRegistration[]
+
+  @@index([scheduledDate, status])
+  @@index([healthStructureId, scheduledDate])
+  @@map("donation_days")
+}
+
+// ============================================================
+//  INSCRIPTION DONNEUR À UNE JOURNÉE
+// ============================================================
+
+model DonationDayRegistration {
+  id            String @id @default(uuid()) @db.Uuid
+  donationDayId String @db.Uuid
+  donorId       String @db.Uuid
+
+  status RegistrationStatus @default(REGISTERED)
+
+  // Créneau choisi (optionnel — si la structure propose des créneaux)
+  timeSlot String? // "09:00-10:00"
+
+  registeredAt DateTime  @default(now())
+  attendedAt   DateTime?
+  cancelledAt  DateTime?
+
+  // Relations
+  donationDay DonationDay @relation(fields: [donationDayId], references: [id])
+  donor       User        @relation(fields: [donorId], references: [id])
+
+  @@unique([donationDayId, donorId]) // Un donneur ne peut s'inscrire qu'une fois
+  @@map("donation_day_registrations")
 }
