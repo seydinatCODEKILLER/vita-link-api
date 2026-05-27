@@ -7,7 +7,7 @@ const getClientIp = (req) => {
   return req.ip;
 };
 
-// ─── Général ──────────────────────────────────────────────────
+// ─── Générale ──────────────────────────────────────────────────
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
