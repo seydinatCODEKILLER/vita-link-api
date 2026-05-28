@@ -32,7 +32,7 @@ export const authenticate = async (req, _res, next) => {
         email: true,
         role: true,
         isActive: true,
-
+        bloodType: true,
         employerStructure: {
           select: {
             id: true,
