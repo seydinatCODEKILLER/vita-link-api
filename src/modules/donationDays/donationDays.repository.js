@@ -249,6 +249,28 @@ class DonationDayRepository extends BaseRepository {
       },
     });
   }
+
+  findActiveRegistration(donorId) {
+    return prisma.donationDayRegistration.findFirst({
+      where: {
+        donorId,
+        status: "REGISTERED",
+        donationDay: {
+          scheduledDate: { gte: new Date() },
+          status: "PUBLISHED",
+        },
+      },
+      select: {
+        id: true,
+        donationDay: {
+          select: {
+            title: true,
+            scheduledDate: true,
+          },
+        },
+      },
+    });
+  }
 }
 
 export default new DonationDayRepository();

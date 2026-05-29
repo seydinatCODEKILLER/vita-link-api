@@ -259,7 +259,6 @@ class DonationDayService {
       donorProfile.jambaarsProfile?.nextEligibilityAt ?? null;
 
     if (nextEligibilityAt && !isDonorEligible(nextEligibilityAt)) {
-      // Calculer le nombre de jours restants pour un message clair
       const now = new Date();
       const eligibleDate = new Date(nextEligibilityAt);
       const daysRemaining = Math.ceil(
@@ -270,6 +269,18 @@ class DonationDayService {
         `Vous n'êtes pas encore éligible pour donner votre sang. ` +
           `Vous pourrez vous inscrire dans ${daysRemaining} jour${daysRemaining > 1 ? "s" : ""} ` +
           `(à partir du ${eligibleDate.toLocaleDateString("fr-FR")}).`,
+      );
+    }
+
+    const activeRegistration =
+      await donationDayRepository.findActiveRegistration(donorId);
+    if (activeRegistration) {
+      const eventDate = new Date(
+        activeRegistration.donationDay.scheduledDate,
+      ).toLocaleDateString("fr-FR");
+      throw new ConflictError(
+        `Vous êtes déjà inscrit à la journée "${activeRegistration.donationDay.title}" ` +
+          `prévue le ${eventDate}. Annulez d'abord cette inscription avant de vous réinscrire.`,
       );
     }
 
