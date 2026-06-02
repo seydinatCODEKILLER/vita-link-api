@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('DONOR', 'HEALTH_STRUCTURE', 'ADMIN');
+CREATE TYPE "Role" AS ENUM ('DONOR', 'CNTS_AGENT', 'CNTS_ADMIN', 'HOSPITAL_AGENT', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE');
@@ -42,6 +42,21 @@ CREATE TYPE "HealthStructureStatus" AS ENUM ('PENDING_REVIEW', 'VERIFIED', 'SUSP
 
 -- CreateEnum
 CREATE TYPE "BloodStockLevel" AS ENUM ('CRITICAL', 'LOW', 'ADEQUATE', 'SURPLUS');
+
+-- CreateEnum
+CREATE TYPE "DonationDayStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'CANCELLED', 'COMPLETED');
+
+-- CreateEnum
+CREATE TYPE "RegistrationStatus" AS ENUM ('REGISTERED', 'ATTENDED', 'NO_SHOW', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "StructureType" AS ENUM ('CNTS', 'HOSPITAL', 'HEALTH_CENTER');
+
+-- CreateEnum
+CREATE TYPE "AlertOrigin" AS ENUM ('CNTS_DIRECT', 'CNTS_ESCALATION', 'HOSPITAL_DIRECT');
+
+-- CreateEnum
+CREATE TYPE "BloodRequestStatus" AS ENUM ('PENDING', 'FULFILLED', 'PARTIALLY_FULFILLED', 'ESCALATED_TO_ALERT', 'REJECTED', 'CANCELLED');
 
 -- CreateTable
 CREATE TABLE "otp_codes" (
@@ -88,8 +103,10 @@ CREATE TABLE "users" (
 CREATE TABLE "health_structures" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
+    "structureType" "StructureType" NOT NULL,
     "registrationNumber" TEXT NOT NULL,
     "address" TEXT NOT NULL,
+    "region" TEXT NOT NULL,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
     "phone" TEXT,
@@ -99,6 +116,7 @@ CREATE TABLE "health_structures" (
     "verifiedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "affiliatedCntsId" UUID,
 
     CONSTRAINT "health_structures_pkey" PRIMARY KEY ("id")
 );
@@ -122,6 +140,8 @@ CREATE TABLE "alerts" (
     "closedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "origin" "AlertOrigin" NOT NULL DEFAULT 'CNTS_DIRECT',
+    "bloodRequestId" UUID,
 
     CONSTRAINT "alerts_pkey" PRIMARY KEY ("id")
 );
@@ -259,6 +279,7 @@ CREATE TABLE "blood_stocks" (
     "bloodType" "BloodType" NOT NULL,
     "quantity" INTEGER NOT NULL DEFAULT 0,
     "level" "BloodStockLevel" NOT NULL DEFAULT 'ADEQUATE',
+    "lastSuppliedAt" TIMESTAMP(3),
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "blood_stocks_pkey" PRIMARY KEY ("id")
@@ -275,6 +296,7 @@ CREATE TABLE "notifications" (
     "status" "NotificationStatus" NOT NULL DEFAULT 'PENDING',
     "sentAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
@@ -293,6 +315,69 @@ CREATE TABLE "audit_logs" (
     CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "donation_days" (
+    "id" UUID NOT NULL,
+    "healthStructureId" UUID NOT NULL,
+    "createdByUserId" UUID NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "photoUrl" TEXT,
+    "address" TEXT NOT NULL,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
+    "scheduledDate" TIMESTAMP(3) NOT NULL,
+    "startTime" TEXT NOT NULL,
+    "endTime" TEXT NOT NULL,
+    "targetDonors" INTEGER NOT NULL DEFAULT 50,
+    "bloodTypesNeeded" TEXT[],
+    "status" "DonationDayStatus" NOT NULL DEFAULT 'DRAFT',
+    "publishedAt" TIMESTAMP(3),
+    "cancelledAt" TIMESTAMP(3),
+    "cancelReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "donation_days_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "donation_day_registrations" (
+    "id" UUID NOT NULL,
+    "donationDayId" UUID NOT NULL,
+    "donorId" UUID NOT NULL,
+    "status" "RegistrationStatus" NOT NULL DEFAULT 'REGISTERED',
+    "timeSlot" TEXT,
+    "registeredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "attendedAt" TIMESTAMP(3),
+    "cancelledAt" TIMESTAMP(3),
+
+    CONSTRAINT "donation_day_registrations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "blood_requests" (
+    "id" UUID NOT NULL,
+    "requestingHospitalId" UUID NOT NULL,
+    "requestedByUserId" UUID NOT NULL,
+    "handledByCntsId" UUID NOT NULL,
+    "handledByUserId" UUID,
+    "bloodType" "BloodType" NOT NULL,
+    "quantityNeeded" INTEGER NOT NULL,
+    "urgencyLevel" "UrgencyLevel" NOT NULL,
+    "serviceUnit" "ServiceUnit" NOT NULL,
+    "clinicalContext" TEXT,
+    "quantityProvided" INTEGER NOT NULL DEFAULT 0,
+    "status" "BloodRequestStatus" NOT NULL DEFAULT 'PENDING',
+    "cntsNotes" TEXT,
+    "escalatedAlertId" UUID,
+    "fulfilledAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "blood_requests_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE INDEX "otp_codes_email_idx" ON "otp_codes"("email");
 
@@ -307,6 +392,9 @@ CREATE UNIQUE INDEX "users_refreshToken_key" ON "users"("refreshToken");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "health_structures_registrationNumber_key" ON "health_structures"("registrationNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "alerts_bloodRequestId_key" ON "alerts"("bloodRequestId");
 
 -- CreateIndex
 CREATE INDEX "alerts_status_createdAt_idx" ON "alerts"("status", "createdAt");
@@ -350,8 +438,32 @@ CREATE INDEX "notifications_userId_createdAt_idx" ON "notifications"("userId", "
 -- CreateIndex
 CREATE INDEX "audit_logs_entityType_entityId_idx" ON "audit_logs"("entityType", "entityId");
 
+-- CreateIndex
+CREATE INDEX "donation_days_scheduledDate_status_idx" ON "donation_days"("scheduledDate", "status");
+
+-- CreateIndex
+CREATE INDEX "donation_days_healthStructureId_scheduledDate_idx" ON "donation_days"("healthStructureId", "scheduledDate");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "donation_day_registrations_donationDayId_donorId_key" ON "donation_day_registrations"("donationDayId", "donorId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "blood_requests_escalatedAlertId_key" ON "blood_requests"("escalatedAlertId");
+
+-- CreateIndex
+CREATE INDEX "blood_requests_status_createdAt_idx" ON "blood_requests"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "blood_requests_requestingHospitalId_createdAt_idx" ON "blood_requests"("requestingHospitalId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "blood_requests_handledByCntsId_status_idx" ON "blood_requests"("handledByCntsId", "status");
+
 -- AddForeignKey
 ALTER TABLE "users" ADD CONSTRAINT "users_healthStructureId_fkey" FOREIGN KEY ("healthStructureId") REFERENCES "health_structures"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "health_structures" ADD CONSTRAINT "health_structures_affiliatedCntsId_fkey" FOREIGN KEY ("affiliatedCntsId") REFERENCES "health_structures"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "alerts" ADD CONSTRAINT "alerts_healthStructureId_fkey" FOREIGN KEY ("healthStructureId") REFERENCES "health_structures"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -409,3 +521,30 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_alertId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "donation_days" ADD CONSTRAINT "donation_days_healthStructureId_fkey" FOREIGN KEY ("healthStructureId") REFERENCES "health_structures"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "donation_days" ADD CONSTRAINT "donation_days_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "donation_day_registrations" ADD CONSTRAINT "donation_day_registrations_donationDayId_fkey" FOREIGN KEY ("donationDayId") REFERENCES "donation_days"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "donation_day_registrations" ADD CONSTRAINT "donation_day_registrations_donorId_fkey" FOREIGN KEY ("donorId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "blood_requests" ADD CONSTRAINT "blood_requests_requestingHospitalId_fkey" FOREIGN KEY ("requestingHospitalId") REFERENCES "health_structures"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "blood_requests" ADD CONSTRAINT "blood_requests_requestedByUserId_fkey" FOREIGN KEY ("requestedByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "blood_requests" ADD CONSTRAINT "blood_requests_handledByCntsId_fkey" FOREIGN KEY ("handledByCntsId") REFERENCES "health_structures"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "blood_requests" ADD CONSTRAINT "blood_requests_handledByUserId_fkey" FOREIGN KEY ("handledByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "blood_requests" ADD CONSTRAINT "blood_requests_escalatedAlertId_fkey" FOREIGN KEY ("escalatedAlertId") REFERENCES "alerts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
