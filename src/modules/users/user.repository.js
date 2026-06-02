@@ -40,6 +40,15 @@ export const ME_SELECT = {
       status: true,
       isVerified: true,
       address: true,
+      structureType: true,      // ← AJOUT CRITIQUE
+      affiliatedCntsId: true,   // ← AJOUT CRITIQUE
+      affiliatedCnts: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+        }
+      }
     },
   },
 };
@@ -160,6 +169,7 @@ class UserRepository extends BaseRepository {
             bloodType: true,
             urgencyLevel: true,
             status: true,
+            origin: true, 
             healthStructure: {
               select: {
                 id: true,

@@ -182,11 +182,13 @@ class AdminRepository {
 
   // ─── Health Structures ─────────────────────────────────────
 
-  findStructures({ status,region, page, limit }) {
-      const where = { 
-    ...(status && { status }),
-    ...(region && { region })
-  };
+  findStructures({ status, structureType, region, page, limit }) {
+    // ← AJOUT structureType
+    const where = {
+      ...(status && { status }),
+      ...(structureType && { structureType }), // ← AJOUT
+      ...(region && { region }),
+    };
 
     return Promise.all([
       prisma.healthStructure.findMany({
@@ -194,6 +196,7 @@ class AdminRepository {
         select: {
           id: true,
           name: true,
+          structureType: true, // ← AJOUT pour l'affichage admin
           registrationNumber: true,
           address: true,
           region: true,
@@ -202,6 +205,7 @@ class AdminRepository {
           isVerified: true,
           status: true,
           verifiedAt: true,
+          affiliatedCntsId: true, // ← AJOUT pour voir si l'hôpital est affilié
           createdAt: true,
           _count: {
             select: { staffMembers: true, alerts: true, donations: true },
@@ -290,7 +294,13 @@ class AdminRepository {
   findStructureById(id) {
     return prisma.healthStructure.findUnique({
       where: { id },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        structureType: true, // ← AJOUT
+        affiliatedCntsId: true, // ← AJOUT
+        status: true,
+      },
     });
   }
 
@@ -405,36 +415,42 @@ class AdminRepository {
   // ─── Heatmap par Région ────────────────────────────────────
 
   async getRegionStats() {
-    // 1. Compter les donneurs actifs par ville (depuis leur profil Jambaars)
     const donorsByCity = await prisma.jambaarsProfile.groupBy({
       by: ["city"],
       where: { city: { not: null }, user: { role: "DONOR", isActive: true } },
       _count: { city: true },
     });
 
-    // 2. Compter les alertes par structure
-    // (On groupe sur la table Alert, ce qui est autorisé par Prisma)
     const alertsByStructure = await prisma.alert.groupBy({
       by: ["healthStructureId"],
-      _count: { id: true }, // Compte le nombre d'alertes par structure
+      _count: { id: true },
     });
 
-    // 3. Récupérer les régions des structures qui ont des alertes
     const structureIds = alertsByStructure.map((a) => a.healthStructureId);
+
+    // ✅ Fix 1 : early return si aucune alerte
+    if (structureIds.length === 0) {
+      return donorsByCity.map((d) => ({
+        region: d.city,
+        demandLevel: 0,
+        donorsCount: d._count.city,
+      }));
+    }
 
     const structures = await prisma.healthStructure.findMany({
       where: {
         id: { in: structureIds },
-        region: { not: null }, // On ignore les structures sans région renseignée
+        // ✅ Fix 2 : filtre region retiré du where Prisma
       },
       select: { id: true, region: true },
     });
 
-    // 4. Agréger le nombre d'alertes par région
-    const alertsByRegionMap = {};
+    // ✅ Fix 3 : filtrage en JS plutôt que via Prisma
+    const structuresWithRegion = structures.filter((s) => s.region != null);
 
+    const alertsByRegionMap = {};
     alertsByStructure.forEach((alertGroup) => {
-      const structure = structures.find(
+      const structure = structuresWithRegion.find(
         (s) => s.id === alertGroup.healthStructureId,
       );
       if (structure && structure.region) {
@@ -444,7 +460,6 @@ class AdminRepository {
       }
     });
 
-    // 5. Fusionner les données
     const allRegions = new Set([
       ...donorsByCity.map((d) => d.city),
       ...Object.keys(alertsByRegionMap),
@@ -456,13 +471,40 @@ class AdminRepository {
       const donorData = donorsByCity.find((d) => d.city === region);
       const donorsCount = donorData?._count.city || 0;
       const demandCount = alertsByRegionMap[region] || 0;
-
       const demandLevel = Math.round((demandCount / maxAlerts) * 100);
 
       return { region, demandLevel, donorsCount };
     });
 
     return data.sort((a, b) => b.demandLevel - a.demandLevel);
+  }
+
+  async ensureStockInitialized(cntsId) {
+    const bloodTypes = [
+      "A_POS",
+      "A_NEG",
+      "B_POS",
+      "B_NEG",
+      "AB_POS",
+      "AB_NEG",
+      "O_POS",
+      "O_NEG",
+    ];
+
+    for (const bloodType of bloodTypes) {
+      await prisma.bloodStock.upsert({
+        where: {
+          healthStructureId_bloodType: { healthStructureId: cntsId, bloodType },
+        },
+        create: {
+          healthStructureId: cntsId,
+          bloodType,
+          quantity: 0,
+          level: "ADEQUATE",
+        },
+        update: {},
+      });
+    }
   }
 }
 

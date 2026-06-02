@@ -69,7 +69,7 @@ router.get(
  *     description: |
  *       Retourne toutes les informations du profil, incluant :
  *       - Pour les **donneurs** : groupe sanguin, disponibilité, profil Jambaar (points, grade, dons)
- *       - Pour les **agents de santé** : structure employeur, statut de vérification
+ *       - Pour les **agents de santé** : structure employeur, type de structure (CNTS/HÔPITAL), affiliation CNTS
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
@@ -90,7 +90,7 @@ router.get(
  *                     phone:       { type: string }
  *                     firstName:   { type: string }
  *                     lastName:    { type: string }
- *                     role:        { type: string, enum: [DONOR, HEALTH_STRUCTURE, ADMIN] }
+ *                     role:        { type: string, enum: [DONOR, CNTS_AGENT, CNTS_ADMIN, HOSPITAL_AGENT, ADMIN] } # ← MODIFIÉ
  *                     bloodType:   { type: string, enum: [A_POS, A_NEG, B_POS, B_NEG, AB_POS, AB_NEG, O_POS, O_NEG] }
  *                     gender:      { type: string, enum: [MALE, FEMALE] }
  *                     isAvailable: { type: boolean }
@@ -110,10 +110,13 @@ router.get(
  *                       type: object
  *                       nullable: true
  *                       properties:
- *                         id:         { type: string }
- *                         name:       { type: string }
- *                         status:     { type: string }
- *                         isVerified: { type: boolean }
+ *                         id:               { type: string }
+ *                         name:             { type: string }
+ *                         status:           { type: string }
+ *                         isVerified:       { type: boolean }
+ *                         structureType:    { type: string, enum: [CNTS, HOSPITAL, HEALTH_CENTER] } # ← AJOUTÉ
+ *                         affiliatedCntsId: { type: string, nullable: true, description: "ID de la CNTS si c'est un hôpital" } # ← AJOUTÉ
+ *                         affiliatedCnts:   { type: object, nullable: true, description: "Détails de la CNTS affiliée" } # ← AJOUTÉ
  *       401:
  *         description: Non authentifié
  *       404:

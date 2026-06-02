@@ -42,13 +42,11 @@ class AuthService {
   async registerDonor(data) {
     const { email, phone } = data;
 
-    // Vérification unicité téléphone (obligatoire)
     const existingPhone = await authRepository.findByPhone(phone);
     if (existingPhone) {
       throw new ConflictError("Ce numéro de téléphone est déjà utilisé");
     }
 
-    // Vérification unicité email (optionnel)
     if (email) {
       const existingEmail = await authRepository.findByEmail(email);
       if (existingEmail) {
@@ -56,15 +54,7 @@ class AuthService {
       }
     }
 
-    // On stocke les données en session via l'OTP — pas encore en DB
-    // L'upsert en DB se fait au moment de la vérification OTP
-    // Pour ça, on encode les données dans le payload OTP via un token court
-    // (stocké dans `otpCode.email` avec les données dans un champ `details`)
-    // → Solution simple hackathon : on envoie l'OTP directement si email fourni,
-    //   sinon on retourne un message pour demander l'email.
-
     if (!email) {
-      // Sans email, on ne peut pas envoyer l'OTP — on confirme juste la dispo
       return {
         message:
           "Numéro disponible. Fournissez votre email pour recevoir le code de vérification.",
@@ -73,18 +63,14 @@ class AuthService {
       };
     }
 
-    // Invalider les OTPs précédents pour cet email
-    await authRepository.invalidatePreviousOtps(email);
+    // ✅ Créer le compte maintenant, pas au moment du verify
+    await authRepository.createDonor(data);
 
-    // Générer et stocker l'OTP
+    await authRepository.invalidatePreviousOtps(email);
     const code = generateOtpCode();
     const expiry = getOtpExpiry(10);
-
     await authRepository.createOtp({ email, code, expiresAt: expiry });
 
-    // Stocker temporairement les données d'inscription dans une table de staging
-    // Hackathon : on réutilise le champ email de l'OTP — les données seront
-    // re-soumises au moment du verify via req.body
     await sendEmail({
       to: email,
       toName: data.firstName,
@@ -95,11 +81,48 @@ class AuthService {
     logger.logEvent("OTP_SENT", { email, context: "donor_register" });
 
     return {
-      message: "Code de vérification envoyé à votre adresse email.",
+      message:
+        "Compte créé. Code de vérification envoyé à votre adresse email.",
       email,
     };
   }
 
+  // ── Vérification OTP — plus de donorData ─────────────────────
+  async verifyOtp({ email, code }) {
+    const otpRecord = await authRepository.findOtp(email);
+
+    if (!isOtpValid(otpRecord)) {
+      throw new BadRequestError("Code OTP invalide ou expiré");
+    }
+    if (otpRecord.code !== code) {
+      throw new BadRequestError("Code OTP incorrect");
+    }
+
+    await authRepository.markOtpUsed(otpRecord.id);
+
+    // ✅ Le user existe déjà — simple lookup
+    const user = await authRepository.findDonorByEmail(email);
+    if (!user) {
+      throw new NotFoundError(
+        "Aucun compte trouvé pour cet email. Veuillez vous inscrire d'abord.",
+      );
+    }
+
+    const { accessToken, refreshToken, expiresAt } = buildTokenPair(
+      user.id,
+      user.role,
+    );
+    await authRepository.storeRefreshToken(user.id, refreshToken, expiresAt);
+
+    logger.logEvent("OTP_VERIFIED", { userId: user.id, email });
+
+    return {
+      message: "Vérification réussie. Bienvenue dans la communauté Jambaar !",
+      accessToken,
+      refreshToken,
+      user,
+    };
+  }
   // ── 2. Inscription structure de santé ───────────────────────
   async registerHealthStructure(data) {
     const { email, phone, registrationNumber } = data;
@@ -321,6 +344,93 @@ class AuthService {
     await authRepository.revokeRefreshToken(userId);
     logger.logEvent("LOGOUT", { userId });
     return { message: "Déconnexion réussie." };
+  }
+
+  // ── Inscription CNTS ────────────────────────────────
+  async registerCnts(data) {
+    const { email, phone, registrationNumber } = data;
+
+    // Vérifications unicité
+    const [existingEmail, existingPhone, existingReg] = await Promise.all([
+      authRepository.findByEmail(email),
+      authRepository.findByPhone(phone),
+      authRepository.findByRegistrationNumber(registrationNumber),
+    ]);
+
+    if (existingEmail)
+      throw new ConflictError("Cette adresse email est déjà utilisée");
+    if (existingPhone)
+      throw new ConflictError("Ce numéro de téléphone est déjà utilisé");
+    if (existingReg)
+      throw new ConflictError("Ce numéro d'enregistrement est déjà utilisé");
+
+    const passwordHash = await hashPassword(data.password);
+
+    const { structure, director } = await authRepository.createCntsWithDirector(
+      {
+        ...data,
+        passwordHash,
+      },
+    );
+
+    logger.logEvent("CNTS_REGISTERED", {
+      structureId: structure.id,
+      directorId: director.id,
+    });
+
+    return {
+      message:
+        "CNTS inscrite avec succès. En attente de vérification par l'administration.",
+      director,
+      structure,
+    };
+  }
+
+  // ── Inscription Hôpital ────────────────────────────────
+  async registerHospital(data) {
+    const { email, phone, registrationNumber, affiliatedCntsId } = data;
+
+    // 1. Vérifier que la CNTS d'affiliation existe BIEN et est de type CNTS
+    // ← MODIFICATION : Appel au repository au lieu de prisma.direct
+    const cntsExists = await authRepository.findValidCntsById(affiliatedCntsId);
+    if (!cntsExists) {
+      throw new NotFoundError(
+        "La CNTS d'affiliation spécifiée est introuvable ou n'est pas valide.",
+      );
+    }
+
+    // 2. Vérifications unicité
+    const [existingEmail, existingPhone, existingReg] = await Promise.all([
+      authRepository.findByEmail(email),
+      authRepository.findByPhone(phone),
+      authRepository.findByRegistrationNumber(registrationNumber),
+    ]);
+
+    if (existingEmail)
+      throw new ConflictError("Cette adresse email est déjà utilisée");
+    if (existingPhone)
+      throw new ConflictError("Ce numéro de téléphone est déjà utilisé");
+    if (existingReg)
+      throw new ConflictError("Ce numéro d'enregistrement est déjà utilisé");
+
+    const passwordHash = await hashPassword(data.password);
+
+    const { structure, director } =
+      await authRepository.createHospitalWithDirector({
+        ...data,
+        passwordHash,
+      });
+
+    logger.logEvent("HOSPITAL_REGISTERED", {
+      structureId: structure.id,
+      affiliatedTo: affiliatedCntsId,
+    });
+
+    return {
+      message: "Hôpital inscrit avec succès. En attente de vérification.",
+      director,
+      structure,
+    };
   }
 }
 

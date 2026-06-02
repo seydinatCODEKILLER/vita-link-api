@@ -35,18 +35,35 @@ class HealthStructureService {
   }
 
   // ── PATCH /health-structures/me ──────────────────────────────
-  async updateMyStructure(userId, isStructureAdmin, data) {
-    // Seul le directeur peut modifier les infos de la structure
+  async updateMyStructure(userId, isStructureAdmin, userStructureType, data) {
     if (!isStructureAdmin) {
       throw new ForbiddenError(
         "Seul le directeur peut modifier les informations de la structure",
       );
     }
 
-    const result = await healthStructureRepository.findByUserId(userId);
-    if (!result?.healthStructureId) {
-      throw new NotFoundError("Structure introuvable");
+    // ← NOUVEAU : Sécurité d'affiliation
+    if (data.affiliatedCntsId) {
+      // Seul un HÔPITAL peut changer son affiliation
+      if (userStructureType === "CNTS") {
+        throw new BadRequestError(
+          "Une CNTS ne peut pas être affiliée à une autre structure",
+        );
+      }
+      // Vérifier que l'ID fourni est bien une CNTS
+      const targetCnts = await healthStructureRepository.findById(
+        data.affiliatedCntsId,
+      );
+      if (!targetCnts || targetCnts.structureType !== "CNTS") {
+        throw new BadRequestError(
+          "La structure d'affiliation spécifiée n'est pas une CNTS valide",
+        );
+      }
     }
+
+    const result = await healthStructureRepository.findByUserId(userId);
+    if (!result?.healthStructureId)
+      throw new NotFoundError("Structure introuvable");
 
     const updated = await healthStructureRepository.updateStructure(
       result.healthStructureId,
@@ -57,17 +74,21 @@ class HealthStructureService {
       structureId: result.healthStructureId,
       updatedBy: userId,
     });
-
     return updated;
   }
 
   // ── POST /health-structures/me/staff ─────────────────────────
-  async addStaff(userId, isStructureAdmin, healthStructureId, staffData) {
+  async addStaff(
+    userId,
+    isStructureAdmin,
+    healthStructureId,
+    staffData,
+    userStructureType,
+  ) {
     if (!isStructureAdmin) {
       throw new ForbiddenError("Seul le directeur peut ajouter des agents");
     }
 
-    // Vérification unicité globale email et téléphone (en parallèle pour la performance)
     const [emailTaken, phoneTaken] = await Promise.all([
       healthStructureRepository.prisma.user.findUnique({
         where: { email: staffData.email },
@@ -82,13 +103,21 @@ class HealthStructureService {
 
     const passwordHash = await hashPassword(staffData.password);
 
+    // ← NOUVEAU : Déterminer le rôle de l'agent selon le type de structure
+    let agentRole;
+    if (userStructureType === "CNTS") {
+      agentRole = staffData.isStructureAdmin ? "CNTS_ADMIN" : "CNTS_AGENT";
+    } else {
+      agentRole = "HOSPITAL_AGENT";
+    }
+
     const agent = await healthStructureRepository.addStaff({
       firstName: staffData.firstName,
       lastName: staffData.lastName,
       email: staffData.email,
       phone: staffData.phone,
       passwordHash,
-      role: "HEALTH_STRUCTURE",
+      role: agentRole, // ← Au lieu de "HEALTH_STRUCTURE"
       isActive: true,
       healthStructureId,
       isStructureAdmin: staffData.isStructureAdmin ?? false,
@@ -99,7 +128,6 @@ class HealthStructureService {
       structureId: healthStructureId,
       addedBy: userId,
     });
-
     return agent;
   }
 
@@ -149,11 +177,42 @@ class HealthStructureService {
 
   // ── GET /health-structures/me/stats ──────────────────────────
   async getStats(userId, healthStructureId) {
-    if (!healthStructureId) {
+    if (!healthStructureId)
       throw new NotFoundError("Vous n'êtes rattaché à aucune structure");
+    const structure =
+      await healthStructureRepository.findById(healthStructureId);
+    if (!structure) throw new NotFoundError("Structure introuvable");
+    return healthStructureRepository.getStats(
+      healthStructureId,
+      structure.structureType,
+    );
+  }
+
+  // ── GET /health-structures/me/affiliated-hospitals ───────────
+  async getAffiliatedHospitals(
+    userId,
+    healthStructureId,
+    userStructureType,
+    filters,
+  ) {
+    if (userStructureType !== "CNTS") {
+      throw new ForbiddenError(
+        "Seule une CNTS peut consulter ses hôpitaux affiliés",
+      );
     }
 
-    return healthStructureRepository.getStats(healthStructureId);
+    return healthStructureRepository.findAffiliatedHospitals(
+      healthStructureId,
+      filters,
+    );
+  }
+
+  async getAvailableCnts() {
+    const cntsList = await healthStructureRepository.findAvailableCnts();
+
+    logger.logEvent("CNTS_LIST_FETCHED", { count: cntsList.length });
+
+    return cntsList;
   }
 }
 

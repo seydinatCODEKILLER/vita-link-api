@@ -10,6 +10,10 @@ export const DONATION_SUMMARY_SELECT = {
   donatedAt: true,
   validatedAt: true,
   notes: true,
+  healthStructure: {
+    // 🆕 AJOUT CRITIQUE
+    select: { id: true, name: true },
+  },
   alertResponse: {
     select: {
       qrCode: true,
@@ -122,6 +126,7 @@ class DonationRepository extends BaseRepository {
     alertResponseId,
     donorId,
     healthStructureId,
+    stockStructureId, // ← NOUVEAU PARAMÈTRE
     validatedByUserId,
     bloodType,
     pointsAwarded,
@@ -131,12 +136,12 @@ class DonationRepository extends BaseRepository {
     testResultsJson,
   }) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Créer le don
+      // 1. Créer le don (lié à l'hôpital/structure physique)
       const donation = await tx.donation.create({
         data: {
           donorId,
           alertResponseId,
-          healthStructureId,
+          healthStructureId, // L'hôpital où le don se fait
           validatedByUserId,
           isDone: true,
           pointsAwarded,
@@ -154,7 +159,7 @@ class DonationRepository extends BaseRepository {
         data: { status: "ARRIVED", arrivedAt: new Date() },
       });
 
-      // 3. Upsert JambaarsProfile — résout le risque de profil inexistant
+      // 3. Upsert JambaarsProfile
       await tx.jambaarsProfile.upsert({
         where: { userId: donorId },
         update: {
@@ -176,13 +181,16 @@ class DonationRepository extends BaseRepository {
         },
       });
 
-      // 4. Upsert BloodStock
+      // 4. Upsert BloodStock ← MODIFIÉ : Utilise stockStructureId (la CNTS)
       await tx.bloodStock.upsert({
         where: {
-          healthStructureId_bloodType: { healthStructureId, bloodType },
+          healthStructureId_bloodType: {
+            healthStructureId: stockStructureId, // ← CNTS ici
+            bloodType,
+          },
         },
         create: {
-          healthStructureId,
+          healthStructureId: stockStructureId, // ← CNTS ici
           bloodType,
           quantity: 1,
           level: "ADEQUATE",

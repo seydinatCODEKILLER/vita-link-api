@@ -41,6 +41,7 @@ class HealthStructureController {
       const structure = await healthStructureService.updateMyStructure(
         req.user.id,
         req.user.isStructureAdmin,
+        req.user.employerStructure.structureType,
         req.validated.body,
       );
       res.status(200).json({ success: true, structure });
@@ -57,6 +58,7 @@ class HealthStructureController {
         req.user.isStructureAdmin,
         req.user.healthStructureId,
         req.validated.body,
+        req.user.employerStructure.structureType, // ← NOUVEAU
       );
       res.status(201).json({ success: true, agent });
     } catch (err) {
@@ -103,6 +105,34 @@ class HealthStructureController {
       res.status(200).json({ success: true, stats });
     } catch (err) {
       next(err);
+    }
+  }
+
+  // GET /health-structures/me/affiliated-hospitals
+  async getAffiliatedHospitals(req, res, next) {
+    try {
+      const hospitals = await healthStructureService.getAffiliatedHospitals(
+        req.user.id,
+        req.user.healthStructureId,
+        req.user.employerStructure.structureType,
+        req.validated.query,
+      );
+      res.status(200).json({ success: true, hospitals });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getAvailableCnts(req, res, next) {
+    try {
+      const cntsList = await healthStructureService.getAvailableCnts();
+
+      return res.status(200).json({
+        success: true,
+        data: cntsList,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 }

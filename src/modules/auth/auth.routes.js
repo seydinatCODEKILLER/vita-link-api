@@ -9,12 +9,14 @@ import {
 } from "../../config/rateLimiter.js";
 import {
   RegisterDonorSchema,
-  RegisterHealthStructureSchema,
   SendOtpSchema,
   VerifyOtpSchema,
   LoginSchema,
   RefreshTokenSchema,
+  RegisterCntsSchema,
+  RegisterHospitalSchema,
 } from "./auth.schema.js";
+import healthStructureController from "../health-structures/healthStructure.controller.js";
 
 const router = Router();
 
@@ -61,13 +63,14 @@ router.post(
 
 /**
  * @swagger
- * /auth/register/health-structure:
+ * /auth/register/cnts:
  *   post:
- *     summary: Inscription d'une structure de santé + directeur
+ *     summary: Inscription d'un Centre National de Transfusion Sanguine (CNTS)
  *     description: |
- *       "Crée simultanément le directeur et la structure en transaction atomique.
- *       La structure est en statut PENDING_REVIEW jusqu'à validation admin.
- *       Le directeur peut se connecter immédiatement mais avec accès limité."
+ *       Crée le compte d'une CNTS (autorité centrale du sang) ainsi que le compte de son directeur administratif.
+ *       - Le directeur reçoit automatiquement le rôle `CNTS_ADMIN`.
+ *       - Le stock sanguin de la CNTS est initialisé à 0 pour les 8 groupes sanguins.
+ *       - La structure est créée avec le statut `PENDING_REVIEW` en attente de validation par un Super Admin.
  *     tags: [Auth]
  *     security: []
  *     requestBody:
@@ -75,42 +78,290 @@ router.post(
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/RegisterHealthStructureDTO'
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phone
+ *               - password
+ *               - structureName
+ *               - registrationNumber
+ *               - address
+ *               - region
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: "Dr. Aminata"
+ *               lastName:
+ *                 type: string
+ *                 example: "Diop"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "admin.cnts@transfusion.sn"
+ *               phone:
+ *                 type: string
+ *                 example: "+221338000000"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "CntsSecure2024!"
+ *               structureName:
+ *                 type: string
+ *                 example: "Centre National de Transfusion Sanguine de Dakar"
+ *               registrationNumber:
+ *                 type: string
+ *                 example: "CNTS-DKR-001"
+ *               address:
+ *                 type: string
+ *                 example: "Avenue Blaise Diagne, Dakar"
+ *               region:
+ *                 type: string
+ *                 description: Région administrative du Sénégal
+ *                 enum:
+ *                   - Dakar
+ *                   - Diourbel
+ *                   - Fatick
+ *                   - Kaffrine
+ *                   - Kaolack
+ *                   - Kédougou
+ *                   - Kolda
+ *                   - Louga
+ *                   - Matam
+ *                   - Sédhiou
+ *                   - Saint-Louis
+ *                   - Tambacounda
+ *                   - Thiès
+ *                   - Ziguinchor
+ *                 example: "Dakar"
+ *               structurePhone:
+ *                 type: string
+ *                 example: "+221338000001"
+ *               structureEmail:
+ *                 type: string
+ *                 format: email
+ *                 example: "contact@cnts-dakar.sn"
+ *               latitude:
+ *                 type: number
+ *                 example: 14.6937
+ *               longitude:
+ *                 type: number
+ *                 example: -17.4441
  *     responses:
  *       201:
- *         description: Structure soumise en attente de vérification
+ *         description: CNTS et son directeur créés avec succès (en attente de vérification)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "CNTS inscrite avec succès. En attente de vérification par l'administration."
+ *                 director:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string, example: "uuid-director" }
+ *                     email: { type: string, example: "admin.cnts@transfusion.sn" }
+ *                     role: { type: string, example: "CNTS_ADMIN" }
+ *                     isStructureAdmin: { type: boolean, example: true }
+ *                 structure:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string, example: "uuid-structure" }
+ *                     name: { type: string, example: "Centre National de Transfusion Sanguine de Dakar" }
+ *                     structureType: { type: string, example: "CNTS" }
+ *                     status: { type: string, example: "PENDING_REVIEW" }
+ *       409:
+ *         description: Conflit - Email, téléphone ou numéro d'enregistrement déjà utilisé
+ *       400:
+ *         description: Erreur de validation des données
+ */
+router.post(
+  "/register/cnts",
+  registerLimiter,
+  validate(RegisterCntsSchema),
+  authController.registerCnts.bind(authController),
+);
+
+/**
+ * @swagger
+ * /health-structures/cnts/available:
+ *   get:
+ *     summary: Liste des CNTS disponibles pour affiliation
+ *     description: Retourne la liste des CNTS vérifiées et actives. Utilisé lors de l'inscription d'un hôpital.
+ *     tags: [Health Structures]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Liste des CNTS
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Inscription soumise avec succès. Votre structure est en attente de vérification par notre équipe." }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string, example: "uuid-cnts" }
+ *                       name: { type: string, example: "CNTS de Dakar" }
+ *                       region: { type: string, example: "Dakar" }
+ *                       address: { type: string, example: "Avenue Blaise Diagne" }
+ */
+router.get(
+  "/cnts/available",
+  healthStructureController.getAvailableCnts.bind(healthStructureController),
+);
+
+/**
+ * @swagger
+ * /auth/register/hospital:
+ *   post:
+ *     summary: Inscription d'un Hôpital ou Centre de Santé
+ *     description: |
+ *       Crée le compte d'un établissement de soins (Hôpital/Clinique) et de son directeur.
+ *       - Le directeur reçoit le rôle `HOSPITAL_AGENT` avec les droits d'administration de la structure.
+ *       - **Règle métier fondamentale** : L'établissement DOIT obligatoirement être affilié à une CNTS existante (`affiliatedCntsId`). Sans cela, l'inscription est rejetée.
+ *       - Aucun stock sanguin n'est initialisé pour cette structure (la gestion du stock est du ressort de la CNTS affiliée).
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phone
+ *               - password
+ *               - structureName
+ *               - registrationNumber
+ *               - address
+ *               - region
+ *               - structureType
+ *               - affiliatedCntsId
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: "Dr. Moussa"
+ *               lastName:
+ *                 type: string
+ *                 example: "Sow"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "dr.sow@hpd.sn"
+ *               phone:
+ *                 type: string
+ *                 example: "+221771234567"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "Motdepasse123!"
+ *               structureName:
+ *                 type: string
+ *                 example: "Hôpital Principal de Dakar"
+ *               registrationNumber:
+ *                 type: string
+ *                 example: "SN-MED-2024-001"
+ *               address:
+ *                 type: string
+ *                 example: "Avenue Nelson Mandela, Dakar"
+ *               region:
+ *                 type: string
+ *                 description: Région administrative du Sénégal
+ *                 enum:
+ *                   - Dakar
+ *                   - Diourbel
+ *                   - Fatick
+ *                   - Kaffrine
+ *                   - Kaolack
+ *                   - Kédougou
+ *                   - Kolda
+ *                   - Louga
+ *                   - Matam
+ *                   - Sédhiou
+ *                   - Saint-Louis
+ *                   - Tambacounda
+ *                   - Thiès
+ *                   - Ziguinchor
+ *                 example: "Dakar"
+ *               structureType:
+ *                 type: string
+ *                 description: Type d'établissement de soins
+ *                 enum:
+ *                   - HOSPITAL
+ *                   - HEALTH_CENTER
+ *                 example: "HOSPITAL"
+ *               affiliatedCntsId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: "OBLIGATOIRE : L'UUID de la CNTS de rattachement. Doit exister en base de données."
+ *                 example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *               structurePhone:
+ *                 type: string
+ *                 example: "+221338201234"
+ *               structureEmail:
+ *                 type: string
+ *                 format: email
+ *                 example: "contact@hpd.sn"
+ *               latitude:
+ *                 type: number
+ *                 example: 14.6937
+ *               longitude:
+ *                 type: number
+ *                 example: -17.4441
+ *     responses:
+ *       201:
+ *         description: Établissement de soins et son directeur créés avec succès (en attente de vérification)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Hôpital inscrit avec succès. En attente de vérification."
  *                 director:
  *                   type: object
  *                   properties:
- *                     id: { type: string, example: "c8a8b..." }
+ *                     id: { type: string, example: "uuid-director" }
  *                     email: { type: string, example: "dr.sow@hpd.sn" }
+ *                     role: { type: string, example: "HOSPITAL_AGENT" }
  *                     isStructureAdmin: { type: boolean, example: true }
  *                 structure:
  *                   type: object
  *                   properties:
- *                     id: { type: string, example: "d9b9c..." }
+ *                     id: { type: string, example: "uuid-structure" }
  *                     name: { type: string, example: "Hôpital Principal de Dakar" }
- *                     region: { type: string, example: "Dakar" } # <-- AJOUT ICI
+ *                     structureType: { type: string, example: "HOSPITAL" }
+ *                     affiliatedCntsId: { type: string, example: "a1b2c3d4..." }
  *                     status: { type: string, example: "PENDING_REVIEW" }
+ *       404:
+ *         description: La CNTS d'affiliation spécifiée est introuvable
  *       409:
  *         description: Conflit - Email, téléphone ou numéro d'enregistrement déjà utilisé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *       400:
+ *         description: "Erreur de validation (ex: affiliatedCntsId manquant)"
  */
 router.post(
-  "/register/health-structure",
+  "/register/hospital",
   registerLimiter,
-  validate(RegisterHealthStructureSchema),
-  authController.registerHealthStructure.bind(authController),
+  validate(RegisterHospitalSchema),
+  authController.registerHospital.bind(authController),
 );
 
 /**

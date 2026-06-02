@@ -2,6 +2,7 @@ import donationDayRepository from "./donationDays.repository.js";
 import MediaUploader from "../../shared/utils/uploader.utils.js";
 import logger from "../../config/logger.js";
 import { isDonorEligible } from "../../shared/utils/points.utils.js";
+import { emitToUser } from "../../config/socket.js";
 import {
   NotFoundError,
   ForbiddenError,
@@ -31,10 +32,13 @@ class DonationDayService {
       throw new NotFoundError("Journée de don");
     }
 
-    if (
-      userRole === "HEALTH_STRUCTURE" &&
-      day.healthStructure.id !== user.healthStructureId
-    ) {
+    // ← MODIFIÉ : Vérification pour les agents CNTS et Hôpitaux
+    const isStructureAgent = [
+      "CNTS_AGENT",
+      "CNTS_ADMIN",
+      "HOSPITAL_AGENT",
+    ].includes(userRole);
+    if (isStructureAgent && day.healthStructure.id !== user.healthStructureId) {
       throw new ForbiddenError("Vous n'êtes pas autorisé à voir cette journée");
     }
 

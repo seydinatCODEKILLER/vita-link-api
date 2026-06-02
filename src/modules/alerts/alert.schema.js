@@ -41,14 +41,21 @@ export const CreateAlertSchema = z.object({
       .default("GENERAL"),
     radiusKm: z.number().min(1).max(50).default(10),
     address: z.string().trim().max(255).optional(),
-    // Coordonnées de l'alerte — optionnelles si la structure en a déjà
     latitude: z.number().min(-90).max(90).optional(),
     longitude: z.number().min(-180).max(180).optional(),
-    // Expiration manuelle optionnelle (sinon auto selon urgence)
     expiresAt: z
       .string()
       .refine((v) => !isNaN(Date.parse(v)), "Date d'expiration invalide")
       .transform((v) => new Date(v))
+      .optional(),
+
+    // ← NOUVEAU : Pour la traçabilité CNTS / Escalade
+    origin: z
+      .enum(["CNTS_DIRECT", "CNTS_ESCALATION", "HOSPITAL_DIRECT"])
+      .optional(),
+    bloodRequestId: z
+      .string()
+      .uuid("ID de demande de sang invalide")
       .optional(),
   }),
 });

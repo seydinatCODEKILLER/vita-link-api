@@ -69,6 +69,58 @@ class BloodStockRepository extends BaseRepository {
       select: STOCK_SELECT,
     });
   }
+
+  // ← NOUVEAU : Utilisé par bloodRequestService pour vérifier le stock
+  findByCntsAndType(cntsId, bloodType) {
+    return this.model.findUnique({
+      where: {
+        healthStructureId_bloodType: {
+          healthStructureId: cntsId,
+          bloodType: bloodType,
+        },
+      },
+    });
+  }
+
+  // ← NOUVEAU : Décrémentation atomique sécurisée (Empêche les quantités négatives)
+  async decrement(stockId, quantityToRemove) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Verrouiller la ligne pour la lecture (empêche les race conditions)
+      const currentStock = await tx.bloodStock.findUnique({
+        where: { id: stockId },
+        select: { quantity: true },
+      });
+
+      if (!currentStock) {
+        throw new Error("Stock introuvable");
+      }
+
+      if (currentStock.quantity < quantityToRemove) {
+        throw new Error(
+          `Stock insuffisant. Actuel: ${currentStock.quantity}, Demandé: ${quantityToRemove}`,
+        );
+      }
+
+      // 2. Mettre à jour et calculer le nouveau niveau
+      const newQuantity = currentStock.quantity - quantityToRemove;
+
+      let newLevel = "SURPLUS";
+      if (newQuantity === 0) newLevel = "CRITICAL";
+      else if (newQuantity <= 5) newLevel = "LOW";
+      else if (newQuantity <= 15) newLevel = "ADEQUATE";
+
+      // 3. Sauvegarder
+      return tx.bloodStock.update({
+        where: { id: stockId },
+        data: {
+          quantity: newQuantity,
+          level: newLevel,
+          lastSuppliedAt: new Date(), // ← Mise à jour de la date de fourniture
+        },
+        select: STOCK_SELECT,
+      });
+    });
+  }
 }
 
 export default new BloodStockRepository();

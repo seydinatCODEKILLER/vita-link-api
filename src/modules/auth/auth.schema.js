@@ -50,9 +50,11 @@ export const RegisterDonorSchema = z.object({
     lastName: z.string().trim().min(2, "Nom trop court").max(50),
     phone: phoneSchema,
     email: z.string().trim().email("Email invalide").optional(),
-    bloodType: z.enum(bloodTypeValues, {
-      errorMap: () => ({ message: "Groupe sanguin invalide" }),
-    }).optional(),
+    bloodType: z
+      .enum(bloodTypeValues, {
+        errorMap: () => ({ message: "Groupe sanguin invalide" }),
+      })
+      .optional(),
     gender: z.enum(["MALE", "FEMALE"], {
       errorMap: () => ({ message: "Genre invalide" }),
     }),
@@ -83,7 +85,9 @@ export const RegisterHealthStructureSchema = z.object({
       .min(3, "Numéro d'enregistrement invalide"),
     address: z.string().trim().min(5, "Adresse trop courte"),
     region: z.enum(SENEGAL_REGIONS, {
-      errorMap: () => ({ message: "Veuillez sélectionner une région valide parmi les 14 régions" }),
+      errorMap: () => ({
+        message: "Veuillez sélectionner une région valide parmi les 14 régions",
+      }),
     }),
     structurePhone: phoneSchema.optional(),
     structureEmail: z.string().trim().email().optional(),
@@ -108,51 +112,6 @@ export const VerifyOtpSchema = z.object({
       .trim()
       .length(6)
       .regex(/^\d{6}$/),
-    phone: z
-      .string()
-      .trim()
-      .transform((v) => (v === "" ? undefined : v))
-      .pipe(
-        z.string().regex(/^\+?[1-9]\d{7,14}$/, "Numéro de téléphone invalide"),
-      )
-      .optional(),
-
-    firstName: z
-      .string()
-      .trim()
-      .min(2, "Prénom trop court")
-      .max(50)
-      .transform((v) => (v === "" ? undefined : v))
-      .optional(),
-
-    lastName: z
-      .string()
-      .trim()
-      .min(2, "Nom trop court")
-      .max(50)
-      .transform((v) => (v === "" ? undefined : v))
-      .optional(),
-
-    bloodType: z
-      .enum(bloodTypeValues)
-      .transform((v) => (v === "" ? undefined : v))
-      .optional(),
-
-    gender: z
-      .enum(["MALE", "FEMALE"])
-      .transform((v) => (v === "" ? undefined : v))
-      .optional(),
-
-    dateOfBirth: z
-      .string()
-      .transform((v) => (v === "" ? undefined : v))
-      .pipe(
-        z
-          .string()
-          .refine((v) => !isNaN(Date.parse(v)), "Date invalide")
-          .transform((v) => new Date(v)),
-      )
-      .optional(),
   }),
 });
 
@@ -168,5 +127,71 @@ export const LoginSchema = z.object({
 export const RefreshTokenSchema = z.object({
   body: z.object({
     refreshToken: z.string().min(1, "Refresh token requis"),
+  }),
+});
+
+// ─── POST /auth/register/cnts ────────────────────────────────
+export const RegisterCntsSchema = z.object({
+  body: z.object({
+    // Directeur CNTS
+    firstName: z.string().trim().min(2).max(50),
+    lastName: z.string().trim().min(2).max(50),
+    email: z.string().trim().email("Email invalide"),
+    phone: phoneSchema,
+    password: passwordSchema,
+
+    // Info CNTS
+    structureName: z.string().trim().min(3, "Nom de la CNTS requis").max(100),
+    registrationNumber: z
+      .string()
+      .trim()
+      .min(3, "Numéro d'enregistrement invalide"),
+    address: z.string().trim().min(5, "Adresse trop courte"),
+    region: z.enum(SENEGAL_REGIONS, {
+      errorMap: () => ({
+        message: "Veuillez sélectionner la région de la CNTS",
+      }),
+    }),
+    structurePhone: phoneSchema.optional(),
+    structureEmail: z.string().trim().email().optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    // Pas de affiliatedCntsId ici !
+  }),
+});
+
+// ─── POST /auth/register/hospital ────────────────────────────
+export const RegisterHospitalSchema = z.object({
+  body: z.object({
+    // Directeur Hôpital
+    firstName: z.string().trim().min(2).max(50),
+    lastName: z.string().trim().min(2).max(50),
+    email: z.string().trim().email("Email invalide"),
+    phone: phoneSchema,
+    password: passwordSchema,
+
+    // Info Hôpital
+    structureName: z.string().trim().min(3, "Nom de l'hôpital requis").max(100),
+    registrationNumber: z
+      .string()
+      .trim()
+      .min(3, "Numéro d'enregistrement invalide"),
+    address: z.string().trim().min(5, "Adresse trop courte"),
+    region: z.enum(SENEGAL_REGIONS, {
+      errorMap: () => ({ message: "Veuillez sélectionner une région valide" }),
+    }),
+    structureType: z.enum(["HOSPITAL", "HEALTH_CENTER"], {
+      errorMap: () => ({ message: "Type de structure invalide" }),
+    }),
+
+    // OBLIGATOIRE : L'hôpital DOIT être affilié à une CNTS existante
+    affiliatedCntsId: z
+      .string()
+      .uuid("L'ID de la CNTS d'affiliation est requis et doit être valide"),
+
+    structurePhone: phoneSchema.optional(),
+    structureEmail: z.string().trim().email().optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
   }),
 });

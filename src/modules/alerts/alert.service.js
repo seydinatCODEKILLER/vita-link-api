@@ -58,6 +58,15 @@ class AlertService {
       expiresAt ??
       new Date(Date.now() + AUTO_EXPIRY_MINUTES[urgencyLevel] * 60 * 1000);
 
+    let finalOrigin = data.origin;
+    if (!finalOrigin) {
+      finalOrigin =
+        structure.structureType === "CNTS" ? "CNTS_DIRECT" : "HOSPITAL_DIRECT";
+    }
+
+    const origin =
+      structure.structureType === "CNTS" ? "CNTS_DIRECT" : "HOSPITAL_DIRECT";
+
     // 1. Créer l'alerte en base
     const alert = await alertRepository.createAlert({
       bloodType,
@@ -71,6 +80,8 @@ class AlertService {
       expiresAt: computedExpiry,
       healthStructureId: user.healthStructureId,
       createdByUserId: user.id,
+      origin: finalOrigin,
+      bloodRequestId: data.bloodRequestId || null,
     });
 
     // 2. Trouver les donneurs compatibles dans le rayon (Haversine SQL)
@@ -90,7 +101,7 @@ class AlertService {
     });
 
     // 3. Notifier en temps réel via Socket.io (donneurs connectés)
-    nearbyDonors.forEach(donor => {
+    nearbyDonors.forEach((donor) => {
       emitToUser(donor.id, "alert:new", {
         alertId: alert.id,
         bloodType: alert.bloodType,
@@ -126,6 +137,24 @@ class AlertService {
       );
     }
 
+    if (finalOrigin === "HOSPITAL_DIRECT" && structure.affiliatedCntsId) {
+      emitToStructure(structure.affiliatedCntsId, "alert:escalation", {
+        alertId: alert.id,
+        bloodType: alert.bloodType,
+        urgencyLevel: alert.urgencyLevel,
+        quantityNeeded: alert.quantityNeeded,
+        hospitalName: structure.name,
+        hospitalId: structure.id,
+        message: `${structure.name} vient de lancer une alerte ${urgencyLevel === "VITAL" ? "VITALE" : "standard"}`,
+      });
+
+      logger.logEvent("CNTS_ESCALATION_NOTIFICATION", {
+        alertId: alert.id,
+        cntsId: structure.affiliatedCntsId,
+        hospitalId: structure.id,
+      });
+    }
+
     return { alert, notifiedDonors: nearbyDonors.length };
   }
 
@@ -140,12 +169,12 @@ class AlertService {
       );
     }
 
-  const rawAlerts = await alertRepository.findNearbyActive(
-    latitude,
-    longitude,
-    15,
-    user.id 
-  );
+    const rawAlerts = await alertRepository.findNearbyActive(
+      latitude,
+      longitude,
+      15,
+      user.id,
+    );
 
     // ✅ MAPPING : On transforme les données plates de la requête SQL brute
     // en objet imbriqué correspondant au type TypeScript Alert du mobile

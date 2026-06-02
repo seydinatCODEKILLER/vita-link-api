@@ -4,7 +4,6 @@ import logger from "../../config/logger.js";
 import { ForbiddenError } from "../../shared/errors/AppError.js";
 
 class BloodStockService {
-  
   // ── Règle métier : Calcul automatique du niveau ────────────
   _calculateStockLevel(quantity) {
     if (quantity === 0) return "CRITICAL";
@@ -28,6 +27,13 @@ class BloodStockService {
       throw new ForbiddenError("Vous n'êtes rattaché à aucune structure");
     }
 
+    // ← NOUVEAU : Seule la CNTS peut modifier le stock manuellement
+    if (user.employerStructure?.structureType !== "CNTS") {
+      throw new ForbiddenError(
+        "Seul un agent de la CNTS peut modifier le stock de sang",
+      );
+    }
+
     const { bloodType, quantity } = data;
     const level = this._calculateStockLevel(quantity);
 
@@ -35,7 +41,7 @@ class BloodStockService {
       user.healthStructureId,
       bloodType,
       quantity,
-      level
+      level,
     );
 
     logger.logEvent("BLOOD_STOCK_UPDATED", {
@@ -43,16 +49,15 @@ class BloodStockService {
       bloodType,
       quantity,
       level,
+      updatedBy: user.id,
     });
 
-    // Notifier le dashboard de la structure en temps réel
     emitToStructure(user.healthStructureId, "stock:updated", {
       bloodType,
       quantity,
       level,
     });
 
-    // Si le stock est critique, alerter les Admins globaux
     if (level === "CRITICAL") {
       emitToAdmins("stock:critical", {
         structureId: user.healthStructureId,
@@ -67,7 +72,8 @@ class BloodStockService {
 
   // ── GET /blood-stocks (Admin) ──────────────────────────────
   async getAllStocks(filters) {
-    const { data, total } = await bloodStockRepository.findAllWithStructure(filters);
+    const { data, total } =
+      await bloodStockRepository.findAllWithStructure(filters);
 
     return {
       stocks: data,

@@ -2,6 +2,7 @@ import { Router } from "express";
 import healthStructureController from "./healthStructure.controller.js";
 import { authenticate } from "../../shared/middlewares/auth.middleware.js";
 import {
+  requireCntsRole,
   requireRole,
   requireStructureMember,
 } from "../../shared/middlewares/role.middleware.js";
@@ -12,6 +13,7 @@ import {
   AddStaffSchema,
   RemoveStaffSchema,
   GetStructureByIdSchema,
+  GetAffiliatedHospitalsSchema,
 } from "./healthStructure.schema.js";
 
 const router = Router();
@@ -78,7 +80,7 @@ router.get(
  */
 router.get(
   "/me",
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_ADMIN", "CNTS_AGENT", "HOSPITAL_AGENT"),
   requireStructureMember,
   crudLimiter,
   healthStructureController.getMyStructure.bind(healthStructureController),
@@ -112,7 +114,7 @@ router.get(
  */
 router.patch(
   "/me",
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_ADMIN", "HOSPITAL_AGENT"),
   requireStructureMember,
   crudLimiter,
   validate(UpdateStructureSchema),
@@ -149,7 +151,7 @@ router.patch(
  */
 router.get(
   "/me/staff",
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_ADMIN", "CNTS_AGENT", "HOSPITAL_AGENT"),
   requireStructureMember,
   crudLimiter,
   healthStructureController.getStaff.bind(healthStructureController),
@@ -186,7 +188,7 @@ router.get(
  */
 router.post(
   "/me/staff",
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_ADMIN", "HOSPITAL_AGENT"),
   requireStructureMember,
   crudLimiter,
   validate(AddStaffSchema),
@@ -219,11 +221,41 @@ router.post(
  */
 router.delete(
   "/me/staff/:userId",
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_ADMIN", "HOSPITAL_AGENT"),
   requireStructureMember,
   crudLimiter,
   validate(RemoveStaffSchema),
   healthStructureController.removeStaff.bind(healthStructureController),
+);
+
+/**
+ * @swagger
+ * /health-structures/me/affiliated-hospitals:
+ *   get:
+ *     summary: Lister les hôpitaux affiliés à ma CNTS
+ *     description: "Réservé aux agents CNTS. Retourne la liste des hôpitaux et centres de santé rattachés à cette CNTS."
+ *     tags: [Health Structures]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING_REVIEW, VERIFIED, SUSPENDED]
+ *     responses:
+ *       200:
+ *         description: Liste des hôpitaux affiliés
+ */
+router.get(
+  "/me/affiliated-hospitals",
+  requireCntsRole,
+  requireStructureMember,
+  crudLimiter,
+  validate(GetAffiliatedHospitalsSchema),
+  healthStructureController.getAffiliatedHospitals.bind(
+    healthStructureController,
+  ),
 );
 
 /**
@@ -265,7 +297,7 @@ router.delete(
  */
 router.get(
   "/me/stats",
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_ADMIN", "CNTS_AGENT", "HOSPITAL_AGENT"),
   requireStructureMember,
   crudLimiter,
   healthStructureController.getStats.bind(healthStructureController),
@@ -295,7 +327,7 @@ router.get(
  */
 router.get(
   "/:id",
-  requireRole("ADMIN", "HEALTH_STRUCTURE"),
+  requireRole("ADMIN", "CNTS_ADMIN", "CNTS_AGENT", "HOSPITAL_AGENT"),
   crudLimiter,
   validate(GetStructureByIdSchema),
   healthStructureController.getById.bind(healthStructureController),

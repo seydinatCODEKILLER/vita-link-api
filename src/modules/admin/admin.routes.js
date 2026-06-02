@@ -133,7 +133,7 @@ router.get(
  *         name: role
  *         schema:
  *           type: string
- *           enum: [DONOR, HEALTH_STRUCTURE, ADMIN]
+ *           enum: [DONOR, CNTS_AGENT, CNTS_ADMIN, HOSPITAL_AGENT, ADMIN]
  *       - in: query
  *         name: bloodType
  *         schema:
@@ -326,6 +326,12 @@ router.patch(
  *           type: string
  *           enum: [PENDING_REVIEW, VERIFIED, SUSPENDED]
  *       - in: query
+ *         name: structureType
+ *         schema:
+ *           type: string
+ *           enum: [CNTS, HOSPITAL, HEALTH_CENTER]
+ *           description: "Filtrer par type de structure"
+ *       - in: query
  *         name: region
  *         schema:
  *           type: string
@@ -371,7 +377,10 @@ router.get(
  * /admin/health-structures/{id}/verify:
  *   patch:
  *     summary: Valider une structure de santé
- *     description: "Passe le statut de la structure à VERIFIED. Le directeur et ses agents pourront alors utiliser pleinement l'application."
+ *     description: | # ← MODIFIÉ
+ *       Passe le statut de la structure à VERIFIED.
+ *       - Si c'est un **Hôpital**, il doit OBLIGATOIREMENT avoir une CNTS d'affiliation pour être vérifié.
+ *       - Si c'est une **CNTS**, son stock sanguin est automatiquement initialisé à 0 lors de la vérification.
  *     tags: [Admin]
  *     security:
  *       - BearerAuth: []

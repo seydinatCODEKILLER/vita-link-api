@@ -4,6 +4,7 @@ import {
   calculateGrade,
   calculateNextEligibility,
 } from "../../shared/utils/points.utils.js";
+import healthStructureRepository from "../health-structures/healthStructure.repository.js";
 import {
   emitToUser,
   emitToAlert,
@@ -75,11 +76,27 @@ class DonationService {
     // 7. Calculer la prochaine date d'éligibilité
     const nextEligibilityAt = calculateNextEligibility(donor.gender);
 
+    let stockStructureId = agent.healthStructureId;
+
+    if (agent.employerStructure?.structureType !== "CNTS") {
+      const hospital = await healthStructureRepository.findById(
+        agent.healthStructureId,
+      );
+      if (hospital?.affiliatedCntsId) {
+        stockStructureId = hospital.affiliatedCntsId; // ← Le stock va à la CNTS !
+      } else {
+        logger.warn(
+          "Hôpital sans CNTS affiliée tente de valider un don. Stock non incrémenté globalement.",
+        );
+      }
+    }
+
     // 8. Transaction atomique : don + points + stock
     const donation = await donationRepository.validateDonation({
       alertResponseId: alertResponse.id,
       donorId: donor.id,
-      healthStructureId: alert.healthStructureId,
+      healthStructureId: alert.healthStructureId, // L'hôpital où le don a eu lieu
+      stockStructureId: stockStructureId, // ← NOUVEAU : La CNTS qui reçoit le stock
       validatedByUserId: agent.id,
       bloodType: alert.bloodType,
       pointsAwarded,
@@ -93,9 +110,8 @@ class DonationService {
       donationId: donation.id,
       donorId: donor.id,
       alertId: alert.id,
+      stockCreditedTo: stockStructureId, // ← Changement de log
       pointsAwarded,
-      newGrade,
-      gradeChanged,
       agentId: agent.id,
     });
 
@@ -107,11 +123,11 @@ class DonationService {
       gradeChanged,
       totalPoints: newTotalPoints,
       nextEligibilityAt,
-      updatedJambaarProfile: donation.donor.jambaarsProfile
+      updatedJambaarProfile: donation.donor.jambaarsProfile,
     });
 
     // 10. Notifier la structure (dashboard stock)
-    emitToStructure(alert.healthStructureId, "stock:updated", {
+    emitToStructure(stockStructureId, "stock:updated", {
       bloodType: alert.bloodType,
       increment: 1,
     });

@@ -40,3 +40,22 @@ export const requireStructureAdmin = (req, _res, next) => {
   }
   next();
 };
+
+export const requireCntsRole = (req, _res, next) => {
+  if (!req.user) return next(new ForbiddenError("Non authentifié"));
+  
+  const isCnts = req.user.role === "CNTS_ADMIN" || req.user.role === "CNTS_AGENT";
+  if (!isCnts) {
+    return next(new ForbiddenError("Accès réservé aux agents de la CNTS"));
+  }
+  next();
+};
+
+export const requireHospitalRole = (req, _res, next) => {
+  if (!req.user) return next(new ForbiddenError("Non authentifié"));
+  
+  if (req.user.role !== "HOSPITAL_AGENT") {
+    return next(new ForbiddenError("Accès réservé aux agents hospitaliers"));
+  }
+  next();
+};

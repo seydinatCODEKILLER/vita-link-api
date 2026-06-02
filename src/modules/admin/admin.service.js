@@ -88,14 +88,36 @@ class AdminService {
     const existing = await adminRepository.findStructureById(id);
     if (!existing) throw new NotFoundError("Structure introuvable");
 
+    // ← NOUVEAU : Vérification métier selon le type de structure
+    if (
+      existing.structureType === "HOSPITAL" ||
+      existing.structureType === "HEALTH_CENTER"
+    ) {
+      if (!existing.affiliatedCntsId) {
+        throw new BadRequestError(
+          "Impossible de vérifier cet hôpital : il n'est affilié à aucune CNTS. Veuillez d'abord l'affilier via le tableau de bord ou l'API.",
+        );
+      }
+    }
+
     const updated = await adminRepository.verifyStructure(id, adminId);
+
+    // ← NOUVEAU : Si c'est une CNTS, on s'assure que son stock est initialisé
+    if (existing.structureType === "CNTS") {
+      await adminRepository.ensureStockInitialized(id);
+    }
+
     emitToStructure(id, "structure:verified", {
       structureId: id,
       status: "VERIFIED",
       verifiedAt: updated.verifiedAt,
     });
 
-    logger.logEvent("STRUCTURE_VERIFIED", { structureId: id, adminId });
+    logger.logEvent("STRUCTURE_VERIFIED", {
+      structureId: id,
+      adminId,
+      type: existing.structureType,
+    });
     return updated;
   }
 

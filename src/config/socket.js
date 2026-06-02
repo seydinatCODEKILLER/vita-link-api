@@ -74,7 +74,10 @@ export const initSocket = (httpServer) => {
     }
 
     // L'agent/directeur rejoint automatiquement la room de sa structure
-    if (role === "HEALTH_STRUCTURE" && healthStructureId) {
+    if (
+      ["CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT"].includes(role) &&
+      healthStructureId
+    ) {
       socket.join(`structure:${healthStructureId}`);
       logger.info(
         { userId: id, structureId: healthStructureId },
@@ -94,7 +97,10 @@ export const initSocket = (httpServer) => {
       if (!alertId) return;
 
       // Seuls les agents de santé et admins peuvent suivre une alerte
-      if (role !== "HEALTH_STRUCTURE" && role !== "ADMIN") return;
+      if (
+        !["CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"].includes(role)
+      )
+        return;
 
       socket.join(`alert:${alertId}`);
       logger.info(

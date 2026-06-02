@@ -14,7 +14,10 @@ import {
   AttendanceSchema,
   ListPublishedDaysSchema,
 } from "./donationDays.schema.js";
-import { requireRole } from "../../shared/middlewares/role.middleware.js";
+import {
+  requireRole,
+  requireCntsRole,
+} from "../../shared/middlewares/role.middleware.js";
 
 const router = Router();
 
@@ -61,7 +64,7 @@ router.use(authenticate);
 router.get(
   "/my-structure",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE"),
+   requireRole("CNTS_ADMIN", "CNTS_AGENT", "HOSPITAL_AGENT"),
   validate(ListMyDaysSchema),
   donationDayController.getMyStructureDays.bind(donationDayController),
 );
@@ -252,7 +255,7 @@ router.get(
 router.post(
   "/",
   uploadLimiter,
-  requireRole("HEALTH_STRUCTURE"),
+  requireCntsRole,
   uploadSingle("photo"),
   validate(CreateDaySchema),
   donationDayController.createDay.bind(donationDayController),
@@ -339,7 +342,7 @@ router.get(
 router.patch(
   "/:id",
   uploadLimiter,
-  requireRole("HEALTH_STRUCTURE"),
+  requireCntsRole,
   uploadSingle("photo"),
   validate(UpdateDaySchema),
   donationDayController.updateDay.bind(donationDayController),
@@ -383,7 +386,7 @@ router.patch(
 router.patch(
   "/:id/cancel",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE"),
+  requireCntsRole,
   validate(CancelDaySchema),
   donationDayController.cancelDay.bind(donationDayController),
 );
@@ -415,7 +418,7 @@ router.patch(
 router.get(
   "/:id/registrations",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   validate(IdParamSchema),
   donationDayController.getRegistrations.bind(donationDayController),
 );
@@ -467,7 +470,7 @@ router.get(
 router.patch(
   "/:id/registrations/:registrationId/attend",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN"),
   validate(AttendanceSchema),
   donationDayController.markAttendance.bind(donationDayController),
 );

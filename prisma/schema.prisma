@@ -20,7 +20,9 @@ datasource db {
 
 enum Role {
   DONOR
-  HEALTH_STRUCTURE
+  CNTS_AGENT
+  CNTS_ADMIN
+  HOSPITAL_AGENT
   ADMIN
 }
 
@@ -126,17 +128,38 @@ enum BloodStockLevel {
 }
 
 enum DonationDayStatus {
-  DRAFT // Créée mais pas encore publiée
-  PUBLISHED // Visible par les donneurs
-  CANCELLED // Annulée
-  COMPLETED // Terminée
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
 }
 
 enum RegistrationStatus {
-  REGISTERED // Inscrit
-  ATTENDED // Est venu
-  NO_SHOW // Ne s'est pas présenté
-  CANCELLED // A annulé son inscription
+  REGISTERED
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+}
+
+enum StructureType {
+  CNTS
+  HOSPITAL
+  HEALTH_CENTER
+}
+
+enum AlertOrigin {
+  CNTS_DIRECT
+  CNTS_ESCALATION
+  HOSPITAL_DIRECT
+}
+
+enum BloodRequestStatus {
+  PENDING
+  FULFILLED
+  PARTIALLY_FULFILLED
+  ESCALATED_TO_ALERT
+  REJECTED
+  CANCELLED
 }
 
 // ============================================================
@@ -208,6 +231,9 @@ model User {
   createdDonationDays      DonationDay[]             @relation("DonationDayCreator")
   donationDayRegistrations DonationDayRegistration[]
 
+  bloodRequests   BloodRequest[] @relation("HospitalBloodRequests")
+  handledRequests BloodRequest[] @relation("CntsHandlerRequests")
+
   @@map("users")
 }
 
@@ -218,9 +244,10 @@ model User {
 model HealthStructure {
   id                 String                @id @default(uuid()) @db.Uuid
   name               String
+  structureType      StructureType
   registrationNumber String                @unique
   address            String
-  region             String?
+  region             String
   latitude           Float?
   longitude          Float?
   phone              String?
@@ -231,12 +258,20 @@ model HealthStructure {
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
+  // ← NOUVEAU : auto-référence hôpital → CNTS régionale
+  affiliatedCntsId    String?           @db.Uuid
+  affiliatedCnts      HealthStructure?  @relation("CntsHospitals", fields: [affiliatedCntsId], references: [id])
+  affiliatedHospitals HealthStructure[] @relation("CntsHospitals")
+
   // Relations
   staffMembers User[]        @relation("StructureStaff")
   alerts       Alert[]
   bloodStocks  BloodStock[]
   donations    Donation[]
   donationDays DonationDay[]
+
+  bloodRequests   BloodRequest[] @relation("RequestingHospital")
+  handledRequests BloodRequest[] @relation("CntsHandledRequests")
 
   @@map("health_structures")
 }
@@ -264,11 +299,17 @@ model Alert {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
+  // ← NOUVEAU
+  origin         AlertOrigin @default(CNTS_DIRECT)
+  bloodRequestId String?     @unique @db.Uuid
+
   // Relations
   healthStructure HealthStructure @relation(fields: [healthStructureId], references: [id])
   createdBy       User            @relation("AlertCreator", fields: [createdByUserId], references: [id])
   alertResponses  AlertResponse[]
   notifications   Notification[]
+
+  bloodRequest BloodRequest? @relation("AlertFromRequest")
 
   @@index([status, createdAt])
   @@map("alerts")
@@ -460,6 +501,7 @@ model BloodStock {
   bloodType         BloodType
   quantity          Int             @default(0)
   level             BloodStockLevel @default(ADEQUATE)
+  lastSuppliedAt    DateTime? // ← NOUVEAU
   updatedAt         DateTime        @updatedAt
 
   // Relations
@@ -584,4 +626,39 @@ model DonationDayRegistration {
 
   @@unique([donationDayId, donorId]) // Un donneur ne peut s'inscrire qu'une fois
   @@map("donation_day_registrations")
+}
+
+model BloodRequest {
+  id String @id @default(uuid()) @db.Uuid
+
+  requestingHospitalId String  @db.Uuid
+  requestedByUserId    String  @db.Uuid
+  handledByCntsId      String  @db.Uuid
+  handledByUserId      String? @db.Uuid
+
+  bloodType       BloodType
+  quantityNeeded  Int
+  urgencyLevel    UrgencyLevel
+  serviceUnit     ServiceUnit
+  clinicalContext String?
+
+  quantityProvided Int                @default(0)
+  status           BloodRequestStatus @default(PENDING)
+  cntsNotes        String?
+  escalatedAlertId String?            @unique @db.Uuid
+
+  fulfilledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  requestingHospital HealthStructure @relation("RequestingHospital", fields: [requestingHospitalId], references: [id])
+  requestedBy        User            @relation("HospitalBloodRequests", fields: [requestedByUserId], references: [id])
+  handledByCnts      HealthStructure @relation("CntsHandledRequests", fields: [handledByCntsId], references: [id])
+  handledBy          User?           @relation("CntsHandlerRequests", fields: [handledByUserId], references: [id])
+  escalatedAlert     Alert?          @relation("AlertFromRequest", fields: [escalatedAlertId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([requestingHospitalId, createdAt])
+  @@index([handledByCntsId, status])
+  @@map("blood_requests")
 }

@@ -98,7 +98,7 @@ router.use(authenticate);
 router.post(
   "/",
   alertLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   requireStructureMember,
   validate(CreateAlertSchema),
   alertController.createAlert.bind(alertController),
@@ -210,7 +210,7 @@ router.get(
 router.get(
   "/my-structure",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   requireStructureMember,
   validate(ListStructureAlertsSchema),
   alertController.getMyStructureAlerts.bind(alertController),
@@ -285,7 +285,7 @@ router.get(
 router.get(
   "/:id/responses",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   alertController.getAlertResponses.bind(alertController),
 );
 
@@ -319,7 +319,7 @@ router.get(
 router.patch(
   "/:id/close",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   requireStructureMember,
   alertController.closeAlert.bind(alertController),
 );

@@ -42,6 +42,8 @@ export const authenticate = async (req, _res, next) => {
             address: true,
             latitude: true,
             longitude: true,
+            structureType: true,
+            affiliatedCntsId: true,
           },
         },
 

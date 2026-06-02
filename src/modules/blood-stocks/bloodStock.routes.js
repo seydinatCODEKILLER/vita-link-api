@@ -2,6 +2,7 @@ import { Router } from "express";
 import bloodStockController from "./bloodStock.controller.js";
 import { authenticate } from "../../shared/middlewares/auth.middleware.js";
 import {
+  requireCntsRole,
   requireRole,
   requireStructureMember,
 } from "../../shared/middlewares/role.middleware.js";
@@ -39,7 +40,7 @@ router.use(authenticate);
 router.get(
   "/me",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   requireStructureMember,
   bloodStockController.getMyStocks.bind(bloodStockController),
 );
@@ -87,7 +88,7 @@ router.get(
 router.patch(
   "/me",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireCntsRole,
   requireStructureMember,
   validate(UpdateMyStockSchema),
   bloodStockController.updateMyStock.bind(bloodStockController),

@@ -10,6 +10,8 @@ export const ALERT_SUMMARY_SELECT = {
   quantityConfirmed: true,
   urgencyLevel: true,
   status: true,
+  origin: true, // ← AJOUT
+  bloodRequestId: true, // ← AJOUT
   serviceUnit: true,
   address: true,
   latitude: true,
@@ -21,6 +23,7 @@ export const ALERT_SUMMARY_SELECT = {
     select: {
       id: true,
       name: true,
+      structureType: true, // ← AJOUT
       address: true,
       latitude: true,
       longitude: true,

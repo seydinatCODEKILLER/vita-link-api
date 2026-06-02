@@ -176,7 +176,7 @@ router.post(
  */
 router.patch(
   "/:alertId/arrived",
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   validate(ArrivedResponseSchema),
   alertResponseController.markArrived.bind(alertResponseController),
 );
@@ -269,7 +269,7 @@ router.patch(
  */
 router.patch(
   "/:alertId/no-show",
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   validate(NoShowResponseSchema),
   alertResponseController.markNoShow.bind(alertResponseController),
 );

@@ -24,7 +24,10 @@ const uuidParam = z.string().uuid("ID invalide");
 // ─── GET /admin/users ─────────────────────────────────────────
 export const GetUsersSchema = z.object({
   query: z.object({
-    role: z.enum(["DONOR", "HEALTH_STRUCTURE", "ADMIN"]).optional(),
+    // ← MODIFIÉ : Remplacement de HEALTH_STRUCTURE par les nouveaux rôles
+    role: z
+      .enum(["DONOR", "CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"])
+      .optional(),
     bloodType: z
       .enum([
         "A_POS",
@@ -75,9 +78,13 @@ export const ReactivateUserSchema = z.object({
 export const GetStructuresSchema = z.object({
   query: z.object({
     status: z.enum(["PENDING_REVIEW", "VERIFIED", "SUSPENDED"]).optional(),
-    region: z.enum(SENEGAL_REGIONS, { // <-- AJOUT : Filtrer par région
-      errorMap: () => ({ message: "Région invalide" }),
-    }).optional(),
+    // ← AJOUT : Filtrer par type de structure
+    structureType: z.enum(["CNTS", "HOSPITAL", "HEALTH_CENTER"]).optional(),
+    region: z
+      .enum(SENEGAL_REGIONS, {
+        errorMap: () => ({ message: "Région invalide" }),
+      })
+      .optional(),
     page: z
       .string()
       .optional()
@@ -123,7 +130,10 @@ export const GetAuditLogsSchema = z.object({
 // ─── GET /admin/stats/monthly ────────────────────────────────
 export const GetMonthlyStatsSchema = z.object({
   query: z.object({
-    year: z.string().optional().transform((v) => (v ? parseInt(v) : undefined)),
+    year: z
+      .string()
+      .optional()
+      .transform((v) => (v ? parseInt(v) : undefined)),
   }),
 });
 

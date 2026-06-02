@@ -85,7 +85,7 @@ router.use(authenticate);
 router.post(
   "/scan",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   requireStructureMember,
   validate(ScanDonationSchema),
   donationController.scan.bind(donationController),
@@ -162,7 +162,7 @@ router.get(
 router.get(
   "/structure",
   crudLimiter,
-  requireRole("HEALTH_STRUCTURE", "ADMIN"),
+  requireRole("CNTS_AGENT", "CNTS_ADMIN", "HOSPITAL_AGENT", "ADMIN"),
   requireStructureMember,
   validate(ListStructureDonationsSchema),
   donationController.getStructureDonations.bind(donationController),
