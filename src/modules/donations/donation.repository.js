@@ -168,7 +168,9 @@ class DonationRepository extends BaseRepository {
           currentGrade: newGrade,
           lastDonationAt: new Date(),
           nextEligibilityAt,
-          livesSavedEstimate: { increment: 3 },
+          livesSavedEstimate: {
+            increment: 3,
+          },
         },
         create: {
           userId: donorId,

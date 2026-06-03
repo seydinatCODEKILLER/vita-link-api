@@ -1,6 +1,7 @@
 import badgeRepository from "./badge.repository.js";
 import logger from "../../config/logger.js";
 import { NotFoundError, ConflictError } from "../../shared/errors/AppError.js";
+import { emitToDonors } from "../../config/socket.js";
 
 class BadgeService {
   // ── GET /badges ───────────────────────────────────────────────
@@ -10,13 +11,15 @@ class BadgeService {
 
   // ── POST /badges ──────────────────────────────────────────────
   async createBadge(data) {
-    // Le format JSON du criteria a déjà été validé par Zod
     const badge = await badgeRepository.createBadge(data);
 
     logger.logEvent("BADGE_CREATED", {
       badgeId: badge.id,
       name: badge.name,
     });
+
+    // Notifie tous les donneurs connectés qu'un nouveau badge est disponible
+    emitToDonors("badges:new", { badgeId: badge.id, name: badge.name });
 
     return badge;
   }
@@ -32,6 +35,9 @@ class BadgeService {
       badgeId: badge.id,
       updates: Object.keys(data),
     });
+
+    // Notifie aussi en cas de mise à jour (nom, icône, critères changés)
+    emitToDonors("badges:new", { badgeId: badge.id, name: badge.name });
 
     return badge;
   }
@@ -52,6 +58,9 @@ class BadgeService {
       name: badge.name,
     });
 
+    // Notifie pour que les clients retirent le badge de leur liste
+    emitToDonors("badges:new", { badgeId: badge.id, name: badge.name });
+
     return badge;
   }
 
@@ -59,9 +68,7 @@ class BadgeService {
   async reactivateBadge(id) {
     const existing = await badgeRepository.findById(id);
 
-    if (!existing) {
-      throw new NotFoundError("Badge");
-    }
+    if (!existing) throw new NotFoundError("Badge");
 
     if (existing.isActive) {
       throw new ConflictError("Ce badge est déjà actif");
@@ -73,6 +80,9 @@ class BadgeService {
       badgeId: badge.id,
       name: badge.name,
     });
+
+    // Notifie pour que les clients voient le badge réactivé
+    emitToDonors("badges:new", { badgeId: badge.id, name: badge.name });
 
     return badge;
   }
