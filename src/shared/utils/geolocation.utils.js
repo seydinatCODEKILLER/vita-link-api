@@ -40,7 +40,10 @@ export const findNearbyDonors = async (
       u.role = 'DONOR'
       AND u."isAvailable" = true
       AND u."isActive" = true
-      AND u."bloodType" = ${bloodType}::"BloodType"
+      AND (
+        u."bloodType" = ${bloodType}::"BloodType"
+        OR u."bloodType" IS NULL
+      )
       AND u.latitude IS NOT NULL
       AND u.longitude IS NOT NULL
       AND (
