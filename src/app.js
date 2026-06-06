@@ -51,6 +51,8 @@ import notificationRouter from "./modules/notifications/notification.routes.js";
 import donationDaysRouter from "./modules/donationDays/donationDays.routes.js";
 import bloodRequestRouter from "./modules/blood-requests/bloodRequest.routes.js";
 import dashboardRouter from "./modules/dashboard/dashboard.routes.js";
+import purchaseOrderRoutes from "./modules/purchaseOrder/purchaseOrder.routes.js";
+
 
 
 // ─── Routes ───────────────────────────────────────────────────
@@ -71,6 +73,7 @@ app.use("/api/notifications", notificationRouter);
 app.use("/api/donation-days", donationDaysRouter);
 app.use("/api/blood-requests", bloodRequestRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/purchase-orders", purchaseOrderRoutes);
 
 
 // ─── Health check ─────────────────────────────────────────────

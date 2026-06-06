@@ -6,6 +6,7 @@ import { runAlertExpiryJob } from "./alertExpiry.job.js";
 import { runEligibilityJob } from "./eligibility.job.js";
 import { runLeaderboardJob } from "./leaderboard.job.js";
 import { runTokenExpireJob } from "./tokenExpire.job.js";
+import { runPurchaseOrderExpiryJob } from "./purchaseOrderExpiry.job.js";
 
 export const startCronJobs = () => {
   logger.info("⏰ Initialisation des tâches cron...");
@@ -14,6 +15,12 @@ export const startCronJobs = () => {
   // Ferme les alertes expirées
   cron.schedule("*/5 * * * *", async () => {
     await runAlertExpiryJob();
+  });
+
+  // ─── Toutes les 10 minutes ─────────────────────────────
+  // Vérifie les bons de commande expirés
+  cron.schedule("*/10 * * * *", async () => {
+    await runPurchaseOrderExpiryJob();
   });
 
   // ─── Tous les jours à 03h00 du matin ───────────────────

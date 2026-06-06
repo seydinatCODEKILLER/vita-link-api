@@ -30,6 +30,22 @@ const BLOOD_REQUEST_SELECT = {
   escalatedAlert: {
     select: { id: true, status: true, createdAt: true },
   },
+  
+  // ── AJOUT DE LA RELATION ──
+  purchaseOrder: {
+    select: { 
+      id: true, 
+      code: true, 
+      bloodType: true, 
+      quantity: true, 
+      status: true, 
+      expiresAt: true, 
+      scannedAt: true,
+      cnts: { 
+        select: { id: true, name: true, address: true } 
+      }
+    }
+  }
 };
 
 class BloodRequestRepository extends BaseRepository {

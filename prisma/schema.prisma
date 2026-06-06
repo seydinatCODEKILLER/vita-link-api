@@ -162,6 +162,13 @@ enum BloodRequestStatus {
   CANCELLED
 }
 
+enum PurchaseOrderStatus {
+  PENDING
+  USED
+  EXPIRED
+  CANCELLED
+}
+
 // ============================================================
 //  OTP CODES
 // ============================================================
@@ -230,6 +237,7 @@ model User {
   managedPartners          Partner[]
   createdDonationDays      DonationDay[]             @relation("DonationDayCreator")
   donationDayRegistrations DonationDayRegistration[]
+  scannedPurchaseOrders PurchaseOrder[]
 
   bloodRequests   BloodRequest[] @relation("HospitalBloodRequests")
   handledRequests BloodRequest[] @relation("CntsHandlerRequests")
@@ -272,6 +280,9 @@ model HealthStructure {
 
   bloodRequests   BloodRequest[] @relation("RequestingHospital")
   handledRequests BloodRequest[] @relation("CntsHandledRequests")
+
+  cntsPurchaseOrders     PurchaseOrder[] @relation("CntsPurchaseOrders")
+  hospitalPurchaseOrders PurchaseOrder[] @relation("HospitalPurchaseOrders")
 
   @@map("health_structures")
 }
@@ -651,6 +662,8 @@ model BloodRequest {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  purchaseOrder PurchaseOrder?
+
   requestingHospital HealthStructure @relation("RequestingHospital", fields: [requestingHospitalId], references: [id])
   requestedBy        User            @relation("HospitalBloodRequests", fields: [requestedByUserId], references: [id])
   handledByCnts      HealthStructure @relation("CntsHandledRequests", fields: [handledByCntsId], references: [id])
@@ -661,4 +674,27 @@ model BloodRequest {
   @@index([requestingHospitalId, createdAt])
   @@index([handledByCntsId, status])
   @@map("blood_requests")
+}
+
+model PurchaseOrder {
+  id               String              @id @default(uuid()) @db.Uuid
+  code             String              @unique
+  bloodRequestId   String              @unique @db.Uuid
+  cntsId           String              @db.Uuid
+  hospitalId       String              @db.Uuid
+  bloodType        BloodType
+  quantity         Int
+  status           PurchaseOrderStatus @default(PENDING)
+  scannedByUserId  String?             @db.Uuid
+  scannedAt        DateTime?
+  expiresAt        DateTime
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  bloodRequest  BloodRequest    @relation(fields: [bloodRequestId], references: [id])
+  cnts          HealthStructure @relation("CntsPurchaseOrders", fields: [cntsId], references: [id])
+  hospital      HealthStructure @relation("HospitalPurchaseOrders", fields: [hospitalId], references: [id])
+  scannedBy     User?           @relation(fields: [scannedByUserId], references: [id])
+
+  @@map("purchase_orders")
 }

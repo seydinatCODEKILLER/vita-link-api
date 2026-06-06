@@ -9,6 +9,7 @@ import {
   ForbiddenError,
   BadRequestError,
 } from "../../shared/errors/AppError.js";
+import purchaseOrderService from "../purchaseOrder/purchaseOrder.service.js";
 
 class BloodRequestService {
   // ── POST /blood-requests ─────────────────────────────────────
@@ -204,6 +205,14 @@ class BloodRequestService {
       fulfilledAt: new Date(),
     });
 
+    const purchaseOrder = await purchaseOrderService.createForRequest({
+      bloodRequestId: request.id,
+      cntsId: user.healthStructureId,
+      hospitalId: request.requestingHospital.id,
+      bloodType: request.bloodType,
+      quantity: request.quantityNeeded,
+    });
+
     emitToStructure(request.requestingHospital.id, "blood_request:fulfilled", {
       requestId: request.id,
       quantityProvided: request.quantityNeeded,
@@ -214,7 +223,7 @@ class BloodRequestService {
       cntsAgentId: user.id,
     });
 
-    return fulfilled;
+    return { ...fulfilled, purchaseOrder };
   }
 
   async _handlePartialFulfill(
@@ -263,6 +272,14 @@ class BloodRequestService {
       escalatedAlertId: alert.id,
     });
 
+    const purchaseOrder = await purchaseOrderService.createForRequest({
+      bloodRequestId: requestId,
+      cntsId: user.healthStructureId,
+      hospitalId: request.requestingHospital.id,
+      bloodType: request.bloodType,
+      quantity: quantityProvided,
+    });
+
     emitToStructure(request.requestingHospital.id, "blood_request:partial", {
       requestId,
       quantityProvided,
@@ -275,7 +292,7 @@ class BloodRequestService {
       alertId: alert.id,
     });
 
-    return partial;
+    return { ...partial, purchaseOrder };
   }
 
   async _handleEscalate(requestId, request, data, user, syntheticUser) {
