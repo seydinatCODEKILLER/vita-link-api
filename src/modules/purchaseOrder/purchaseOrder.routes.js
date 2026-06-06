@@ -13,6 +13,7 @@ import {
   ScanPurchaseOrderSchema,
   GetPurchaseOrderSchema,
   ListPurchaseOrdersSchema,
+  ConfirmExpirySchema,
 } from "./purchaseOrder.schema.js";
 
 const router = Router();
@@ -25,7 +26,7 @@ router.post(
   requireCntsRole,
   requireStructureMember,
   crudLimiter,
-  // validate(ConfirmExpirySchema), // À créer dans ton schema (wasDelivered: boolean, cntsNotes?: string)
+  validate(ConfirmExpirySchema),
   purchaseOrderController.confirmExpiry.bind(purchaseOrderController),
 );
 

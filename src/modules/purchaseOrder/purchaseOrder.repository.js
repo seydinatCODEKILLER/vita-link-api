@@ -58,29 +58,27 @@ class PurchaseOrderRepository extends BaseRepository {
     });
   }
 
-  // Vue hôpital — ses propres bons
-  findByHospital(hospitalId, { page, limit, status }) {
-    const where = {
-      hospitalId,
-      ...(status && { status }),
-    };
-    return this.findManyWithCount(where, {
-      page,
-      limit,
-      sort: { createdAt: "desc" },
-      select: PURCHASE_ORDER_SELECT,
-    });
-  }
-
-  // Vue CNTS — bons à valider
   findByCnts(cntsId, { page, limit, status }) {
     const where = {
       cntsId,
       ...(status && { status }),
     };
     return this.findManyWithCount(where, {
-      page,
-      limit,
+      page: parseInt(page, 10), // ✅
+      limit: parseInt(limit, 10), // ✅
+      sort: { createdAt: "desc" },
+      select: PURCHASE_ORDER_SELECT,
+    });
+  }
+
+  findByHospital(hospitalId, { page, limit, status }) {
+    const where = {
+      hospitalId,
+      ...(status && { status }),
+    };
+    return this.findManyWithCount(where, {
+      page: parseInt(page, 10), // ✅
+      limit: parseInt(limit, 10), // ✅
       sort: { createdAt: "desc" },
       select: PURCHASE_ORDER_SELECT,
     });
