@@ -27,7 +27,7 @@ const RewardFields = {
   }),
   stockQuantity: z.number().int().min(0).default(0),
   isUnlimited: z.boolean().default(false),
-  expiresAt: z.coerce.date().optional().nullable(), // Converti le string en Date
+  expiresAt: z.coerce.date().optional().nullable(),
 };
 
 // ─── POST /rewards ────────────────────────────────────────────

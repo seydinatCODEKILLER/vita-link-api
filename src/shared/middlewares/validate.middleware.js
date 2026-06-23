@@ -15,6 +15,7 @@ export const validate = (schema) => (req, _res, next) => {
   });
 
   if (!result.success) {
+    console.log("ZOD ISSUES:", JSON.stringify(result.error.issues, null, 2));
     const message = Object.entries(result.error.flatten().fieldErrors)
       .map(([field, msgs]) => `${field}: ${msgs.join(", ")}`)
       .join(" | ");

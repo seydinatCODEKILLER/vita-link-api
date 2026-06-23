@@ -85,6 +85,8 @@ class AuthRepository extends BaseRepository {
               totalPoints: true,
               currentGrade: true,
               donationCount: true,
+              nextEligibilityAt: true, // ← AJOUTER
+              lastDonationAt: true,
             },
           },
         },
@@ -448,6 +450,8 @@ class AuthRepository extends BaseRepository {
             totalPoints: true,
             currentGrade: true,
             donationCount: true,
+            lastDonationAt: true, // 👈 AJOUT
+            nextEligibilityAt: true,
           },
         },
       },
