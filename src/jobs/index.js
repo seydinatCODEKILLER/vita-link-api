@@ -7,6 +7,7 @@ import { runEligibilityJob } from "./eligibility.job.js";
 import { runLeaderboardJob } from "./leaderboard.job.js";
 import { runTokenExpireJob } from "./tokenExpire.job.js";
 import { runPurchaseOrderExpiryJob } from "./purchaseOrderExpiry.job.js";
+import { runEligibilityDonateJob } from "./eligibilityDonate.job.js";
 
 export const startCronJobs = () => {
   logger.info("⏰ Initialisation des tâches cron...");

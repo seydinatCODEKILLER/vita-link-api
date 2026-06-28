@@ -163,7 +163,7 @@ class AuthRepository extends BaseRepository {
           name: structureData.structureName,
           registrationNumber: structureData.registrationNumber,
           address: structureData.address,
-          region: structureData.region, // <-- ✅ La région est bien récupérée maintenant !
+          region: structureData.region,
           phone: structureData.structurePhone,
           email: structureData.structureEmail,
           latitude: structureData.latitude,

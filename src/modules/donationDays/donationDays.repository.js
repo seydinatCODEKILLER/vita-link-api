@@ -22,7 +22,14 @@ export const DONATION_DAY_SELECT = {
   updatedAt: true,
   healthStructure: { select: { id: true, name: true, address: true } },
   createdBy: { select: { id: true, firstName: true, lastName: true } },
-  _count: { select: { registrations: true } },
+  
+  _count: { 
+    select: { 
+      registrations: { 
+        where: { status: { not: "CANCELLED" } } 
+      } 
+    } 
+  },
 };
 
 class DonationDayRepository extends BaseRepository {

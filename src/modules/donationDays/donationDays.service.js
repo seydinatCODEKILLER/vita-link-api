@@ -1,4 +1,5 @@
 import donationDayRepository from "./donationDays.repository.js";
+import { prisma } from "../../config/database.js";
 import MediaUploader from "../../shared/utils/uploader.utils.js";
 import logger from "../../config/logger.js";
 import { isDonorEligible } from "../../shared/utils/points.utils.js";
@@ -15,9 +16,18 @@ class DonationDayService {
 
   async getPublishedDays(user, filters) {
     const donorBloodType = user.bloodType ?? null;
-    return donationDayRepository.findNearbyPublished(donorBloodType, filters);
-  }
+    const result = await donationDayRepository.findNearbyPublished(donorBloodType, filters);
+    
+    const dataWithSpots = result.data.map(day => ({
+      ...day,
+      remainingSpots: Math.max(0, day.targetDonors - (day._count?.registrations || 0))
+    }));
 
+    return {
+      data: dataWithSpots,
+      pagination: result.pagination
+    };
+  }
   async getMyStructureDays(user, structureId, filters) {
     if (!structureId)
       throw new ForbiddenError("Vous n'êtes rattaché à aucune structure");
@@ -32,7 +42,6 @@ class DonationDayService {
       throw new NotFoundError("Journée de don");
     }
 
-    // ← MODIFIÉ : Vérification pour les agents CNTS et Hôpitaux
     const isStructureAgent = [
       "CNTS_AGENT",
       "CNTS_ADMIN",
@@ -45,12 +54,25 @@ class DonationDayService {
     const activeRegistrationsCount = day.registrations.filter(
       (r) => r.status !== "CANCELLED",
     ).length;
+
     const remainingSpots = Math.max(
       0,
       day.targetDonors - activeRegistrationsCount,
     );
 
-    return { ...day, remainingSpots };
+    const myRegistration =
+      userRole === "DONOR"
+        ? (day.registrations.find((r) => r.donor?.id === user.id) ?? null)
+        : null;
+
+    return {
+      ...day,
+      _count: {
+        registrations: activeRegistrationsCount,
+      },
+      remainingSpots,
+      myRegistrationStatus: myRegistration?.status ?? null,
+    };
   }
 
   async createDay(user, structureId, data, file) {
@@ -240,23 +262,8 @@ class DonationDayService {
   }
 
   async registerDonor(donorId, dayId) {
-    const day = await donationDayRepository.findById(dayId);
-    if (!day) throw new NotFoundError("Journée de don");
-
-    if (day.status !== "PUBLISHED")
-      throw new BadRequestError(
-        "Cette journée n'est plus ouverte aux inscriptions",
-      );
-    if (new Date(day.scheduledDate) < new Date())
-      throw new BadRequestError(
-        "Impossible de s'inscrire à une journée déjà passée",
-      );
-
-    // ✅ AJOUT : Vérification éligibilité médicale du donneur
-    // On récupère nextEligibilityAt depuis le profil Jambaar
     const donorProfile =
       await donationDayRepository.findDonorEligibility(donorId);
-
     if (!donorProfile) throw new NotFoundError("Profil donneur introuvable");
 
     const nextEligibilityAt =
@@ -288,33 +295,53 @@ class DonationDayService {
       );
     }
 
-    // Vérifier s'il reste de la place
-    const activeRegistrationsCount = day.registrations.filter(
-      (r) => r.status !== "CANCELLED",
-    ).length;
-    if (activeRegistrationsCount >= day.targetDonors) {
-      throw new BadRequestError(
-        "Il n'y a plus de places disponibles pour cette journée",
-      );
-    }
+    // 🆕 Tout ce qui touche au quota de la journée (lecture du nombre de
+    // places + création de la réservation) doit être atomique.
+    const registration = await prisma.$transaction(
+      async (tx) => {
+        const day = await tx.donationDay.findUnique({
+          where: { id: dayId },
+          include: { registrations: true },
+        });
+        if (!day) throw new NotFoundError("Journée de don");
 
-    const existing = await donationDayRepository.findExistingRegistration(
-      dayId,
-      donorId,
+        if (day.status !== "PUBLISHED")
+          throw new BadRequestError(
+            "Cette journée n'est plus ouverte aux inscriptions",
+          );
+        if (new Date(day.scheduledDate) < new Date())
+          throw new BadRequestError(
+            "Impossible de s'inscrire à une journée déjà passée",
+          );
+
+        const activeRegistrationsCount = day.registrations.filter(
+          (r) => r.status !== "CANCELLED",
+        ).length;
+        if (activeRegistrationsCount >= day.targetDonors) {
+          throw new BadRequestError(
+            "Il n'y a plus de places disponibles pour cette journée",
+          );
+        }
+
+        const existing = day.registrations.find((r) => r.donorId === donorId);
+        if (existing) {
+          if (existing.status === "CANCELLED")
+            throw new ConflictError(
+              "Vous avez déjà annulé votre inscription pour cette journée",
+            );
+          throw new ConflictError("Vous êtes déjà inscrit à cette journée");
+        }
+
+        return tx.donationDayRegistration.create({
+          data: {
+            donationDayId: dayId,
+            donorId,
+            status: "REGISTERED",
+          },
+        });
+      },
+      { isolationLevel: "Serializable" },
     );
-    if (existing) {
-      if (existing.status === "CANCELLED")
-        throw new ConflictError(
-          "Vous avez déjà annulé votre inscription pour cette journée",
-        );
-      throw new ConflictError("Vous êtes déjà inscrit à cette journée");
-    }
-
-    const registration = await donationDayRepository.createRegistration({
-      donationDayId: dayId,
-      donorId,
-      status: "REGISTERED",
-    });
 
     logger.logEvent("DONOR_REGISTERED_DAY", { donorId, dayId });
     return registration;
