@@ -78,6 +78,7 @@ class AdminRepository {
           bloodType: true,
           isActive: true,
           isAvailable: true,
+          avatarUrl: true,
           createdAt: true,
           jambaarsProfile: {
             select: {
@@ -111,6 +112,8 @@ class AdminRepository {
         gender: true,
         isActive: true,
         isAvailable: true,
+        avatarUrl: true,
+
         isStructureAdmin: true,
         healthStructureId: true,
         createdAt: true,
